@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
@@ -17,6 +18,8 @@ public static class MilkyCommunication
     /// </summary>
     public const string EventEndpointPath = "event";
 
+    private static readonly TimeSpan DefaultReconnectDelay = TimeSpan.FromSeconds(3);
+
     /// <summary>
     /// Reads events from the protocol-side SSE /event endpoint.
     /// </summary>
@@ -34,6 +37,59 @@ public static class MilkyCommunication
         await foreach (MilkyEvent milkyEvent in ReadSseEventsAsync(stream, cancellationToken).ConfigureAwait(false))
         {
             yield return milkyEvent;
+        }
+    }
+
+    /// <summary>
+    /// Reads SSE events and reconnects after transport failures until cancellation is requested.
+    /// </summary>
+    public static async IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
+        HttpClient client,
+        TimeSpan? reconnectDelay = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        TimeSpan delay = reconnectDelay ?? DefaultReconnectDelay;
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            IAsyncEnumerator<MilkyEvent> enumerator = ReadSseEventsAsync(client, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    MilkyEvent milkyEvent;
+                    try
+                    {
+                        if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+                        {
+                            break;
+                        }
+
+                        milkyEvent = enumerator.Current;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        yield break;
+                    }
+                    catch (HttpRequestException)
+                    {
+                        break;
+                    }
+                    catch (IOException)
+                    {
+                        break;
+                    }
+
+                    yield return milkyEvent;
+                }
+            }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -95,6 +151,60 @@ public static class MilkyCommunication
         await foreach (MilkyEvent milkyEvent in ReadWebSocketEventsAsync(webSocket, cancellationToken).ConfigureAwait(false))
         {
             yield return milkyEvent;
+        }
+    }
+
+    /// <summary>
+    /// Reads WebSocket events and reconnects after transport failures until cancellation is requested.
+    /// </summary>
+    public static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
+        Uri eventUri,
+        string? accessToken = null,
+        TimeSpan? reconnectDelay = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(eventUri);
+        TimeSpan delay = reconnectDelay ?? DefaultReconnectDelay;
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            IAsyncEnumerator<MilkyEvent> enumerator = ReadWebSocketEventsAsync(eventUri, accessToken, cancellationToken).GetAsyncEnumerator(cancellationToken);
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    MilkyEvent milkyEvent;
+                    try
+                    {
+                        if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+                        {
+                            break;
+                        }
+
+                        milkyEvent = enumerator.Current;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        yield break;
+                    }
+                    catch (WebSocketException)
+                    {
+                        break;
+                    }
+                    catch (IOException)
+                    {
+                        break;
+                    }
+
+                    yield return milkyEvent;
+                }
+            }
+            finally
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -164,6 +274,39 @@ public static class MilkyCommunication
     }
 
     /// <summary>
+    /// Runs a lightweight WebHook HTTP listener that validates, parses, and dispatches Milky events.
+    /// </summary>
+    public static async Task RunWebhookListenerAsync(
+        string prefix,
+        MilkyEventPipeline pipeline,
+        string? accessToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
+        ArgumentNullException.ThrowIfNull(pipeline);
+
+        using HttpListener listener = new();
+        listener.Prefixes.Add(prefix);
+        listener.Start();
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                HttpListenerContext context = await listener.GetContextAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+                _ = Task.Run(() => HandleWebhookRequestAsync(context, pipeline, accessToken, cancellationToken), CancellationToken.None);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    /// <summary>
     /// Validates a Milky Authorization header using the Bearer token format.
     /// </summary>
     public static bool IsAuthorized(string? authorizationHeader, string? accessToken)
@@ -221,6 +364,38 @@ public static class MilkyCommunication
         string json = string.Join('\n', dataLines);
         return MilkyEventParser.ParseJson(json);
     }
+
+    private static async Task HandleWebhookRequestAsync(HttpListenerContext context, MilkyEventPipeline pipeline, string? accessToken, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                return;
+            }
+
+            MilkyEvent? milkyEvent = await ReadWebhookEventAsync(context.Request.InputStream, context.Request.Headers["Authorization"], accessToken, cancellationToken).ConfigureAwait(false);
+            if (milkyEvent is not null)
+            {
+                await pipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
+            }
+
+            context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+        }
+        catch (JsonException)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+        }
+        finally
+        {
+            context.Response.Close();
+        }
+    }
 }
 
 /// <summary>
@@ -238,12 +413,30 @@ public static class MilkyHttpSessionEventExtensions
     }
 
     /// <summary>
+    /// Reads events from the protocol-side SSE /event endpoint and reconnects after transport failures.
+    /// </summary>
+    public static IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        return MilkyCommunication.ReadSseEventsWithReconnectAsync(session.Client, reconnectDelay, cancellationToken);
+    }
+
+    /// <summary>
     /// Reads events from the protocol-side WebSocket /event endpoint.
     /// </summary>
     public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(this MilkyHttpSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         return MilkyCommunication.ReadWebSocketEventsAsync(session.EventUri, session.AccessToken, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads events from the protocol-side WebSocket /event endpoint and reconnects after transport failures.
+    /// </summary>
+    public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        return MilkyCommunication.ReadWebSocketEventsWithReconnectAsync(session.EventUri, session.AccessToken, reconnectDelay, cancellationToken);
     }
 
     /// <summary>
@@ -259,12 +452,36 @@ public static class MilkyHttpSessionEventExtensions
     }
 
     /// <summary>
+    /// Reads reconnecting SSE events and executes the session event pipeline for each event.
+    /// </summary>
+    public static async Task RunReconnectingSseEventLoopAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        await foreach (MilkyEvent milkyEvent in session.ReadSseEventsWithReconnectAsync(reconnectDelay, cancellationToken).ConfigureAwait(false))
+        {
+            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Reads WebSocket events and executes the session event pipeline for each event.
     /// </summary>
     public static async Task RunWebSocketEventLoopAsync(this MilkyHttpSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         await foreach (MilkyEvent milkyEvent in session.ReadWebSocketEventsAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Reads reconnecting WebSocket events and executes the session event pipeline for each event.
+    /// </summary>
+    public static async Task RunReconnectingWebSocketEventLoopAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        await foreach (MilkyEvent milkyEvent in session.ReadWebSocketEventsWithReconnectAsync(reconnectDelay, cancellationToken).ConfigureAwait(false))
         {
             await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
         }

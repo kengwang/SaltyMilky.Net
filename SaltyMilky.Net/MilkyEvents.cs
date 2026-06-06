@@ -71,9 +71,21 @@ public record class MilkyMessageRecallEventData : MilkyEventData
     public string DisplaySuffix { get; set; } = string.Empty;
 }
 
-/// <summary>Generic structured event data for scalar event variants.</summary>
-public record class MilkyCommonEventData(string Kind) : MilkyEventData
+/// <summary>Generic structured event data for compatibility with scalar event variants.</summary>
+public record class MilkyCommonEventData : MilkyEventData
 {
+    /// <summary>Initializes generic structured event data.</summary>
+    public MilkyCommonEventData() : this(string.Empty)
+    {
+    }
+
+    /// <summary>Initializes generic structured event data with an event kind.</summary>
+    public MilkyCommonEventData(string kind) => Kind = kind;
+
+    /// <summary>Gets the event kind.</summary>
+    [JsonIgnore]
+    public string Kind { get; init; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string EventType => Kind;
@@ -187,6 +199,176 @@ public record class MilkyCommonEventData(string Kind) : MilkyEventData
     public string? NewGroupName { get; set; }
 }
 
+/// <summary>Peer pin change event data.</summary>
+public record class MilkyPeerPinChangeEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes peer pin change event data.</summary>
+    public MilkyPeerPinChangeEventData() : base("peer_pin_change") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "peer_pin_change";
+}
+
+/// <summary>Friend request event data.</summary>
+public record class MilkyFriendRequestEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes friend request event data.</summary>
+    public MilkyFriendRequestEventData() : base("friend_request") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "friend_request";
+}
+
+/// <summary>Group join request event data.</summary>
+public record class MilkyGroupJoinRequestEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group join request event data.</summary>
+    public MilkyGroupJoinRequestEventData() : base("group_join_request") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_join_request";
+}
+
+/// <summary>Group invited-join request event data.</summary>
+public record class MilkyGroupInvitedJoinRequestEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group invited-join request event data.</summary>
+    public MilkyGroupInvitedJoinRequestEventData() : base("group_invited_join_request") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_invited_join_request";
+}
+
+/// <summary>Group invitation event data.</summary>
+public record class MilkyGroupInvitationEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group invitation event data.</summary>
+    public MilkyGroupInvitationEventData() : base("group_invitation") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_invitation";
+}
+
+/// <summary>Friend nudge event data.</summary>
+public record class MilkyFriendNudgeEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes friend nudge event data.</summary>
+    public MilkyFriendNudgeEventData() : base("friend_nudge") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "friend_nudge";
+}
+
+/// <summary>Friend file upload event data.</summary>
+public record class MilkyFriendFileUploadEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes friend file upload event data.</summary>
+    public MilkyFriendFileUploadEventData() : base("friend_file_upload") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "friend_file_upload";
+}
+
+/// <summary>Group administrator change event data.</summary>
+public record class MilkyGroupAdminChangeEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group administrator change event data.</summary>
+    public MilkyGroupAdminChangeEventData() : base("group_admin_change") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_admin_change";
+}
+
+/// <summary>Group essence message change event data.</summary>
+public record class MilkyGroupEssenceMessageChangeEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group essence message change event data.</summary>
+    public MilkyGroupEssenceMessageChangeEventData() : base("group_essence_message_change") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_essence_message_change";
+}
+
+/// <summary>Group member increase event data.</summary>
+public record class MilkyGroupMemberIncreaseEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group member increase event data.</summary>
+    public MilkyGroupMemberIncreaseEventData() : base("group_member_increase") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_member_increase";
+}
+
+/// <summary>Group member decrease event data.</summary>
+public record class MilkyGroupMemberDecreaseEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group member decrease event data.</summary>
+    public MilkyGroupMemberDecreaseEventData() : base("group_member_decrease") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_member_decrease";
+}
+
+/// <summary>Group name change event data.</summary>
+public record class MilkyGroupNameChangeEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group name change event data.</summary>
+    public MilkyGroupNameChangeEventData() : base("group_name_change") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_name_change";
+}
+
+/// <summary>Group message reaction event data.</summary>
+public record class MilkyGroupMessageReactionEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group message reaction event data.</summary>
+    public MilkyGroupMessageReactionEventData() : base("group_message_reaction") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_message_reaction";
+}
+
+/// <summary>Group member mute event data.</summary>
+public record class MilkyGroupMuteEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group member mute event data.</summary>
+    public MilkyGroupMuteEventData() : base("group_mute") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_mute";
+}
+
+/// <summary>Group whole mute event data.</summary>
+public record class MilkyGroupWholeMuteEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group whole mute event data.</summary>
+    public MilkyGroupWholeMuteEventData() : base("group_whole_mute") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_whole_mute";
+}
+
+/// <summary>Group nudge event data.</summary>
+public record class MilkyGroupNudgeEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group nudge event data.</summary>
+    public MilkyGroupNudgeEventData() : base("group_nudge") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_nudge";
+}
+
+/// <summary>Group file upload event data.</summary>
+public record class MilkyGroupFileUploadEventData : MilkyCommonEventData
+{
+    /// <summary>Initializes group file upload event data.</summary>
+    public MilkyGroupFileUploadEventData() : base("group_file_upload") { }
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string EventType => "group_file_upload";
+}
+
 /// <summary>Unknown event data preserved as raw JSON.</summary>
 public record class MilkyUnknownEventData(string Kind, JsonElement RawData) : MilkyEventData
 {
@@ -265,7 +447,23 @@ public sealed class MilkyEventJsonConverter : JsonConverter<MilkyEvent>
             "bot_offline" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyBotOfflineEventData),
             "message_receive" => ReadMessageReceive(dataElement, options),
             "message_recall" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyMessageRecallEventData),
-            "peer_pin_change" or "friend_request" or "group_join_request" or "group_invited_join_request" or "group_invitation" or "friend_nudge" or "friend_file_upload" or "group_admin_change" or "group_essence_message_change" or "group_member_increase" or "group_member_decrease" or "group_name_change" or "group_message_reaction" or "group_mute" or "group_whole_mute" or "group_nudge" or "group_file_upload" => ReadCommon(eventType, dataElement, options),
+            "peer_pin_change" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyPeerPinChangeEventData),
+            "friend_request" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendRequestEventData),
+            "group_join_request" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupJoinRequestEventData),
+            "group_invited_join_request" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupInvitedJoinRequestEventData),
+            "group_invitation" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupInvitationEventData),
+            "friend_nudge" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendNudgeEventData),
+            "friend_file_upload" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendFileUploadEventData),
+            "group_admin_change" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupAdminChangeEventData),
+            "group_essence_message_change" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupEssenceMessageChangeEventData),
+            "group_member_increase" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupMemberIncreaseEventData),
+            "group_member_decrease" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupMemberDecreaseEventData),
+            "group_name_change" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupNameChangeEventData),
+            "group_message_reaction" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupMessageReactionEventData),
+            "group_mute" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupMuteEventData),
+            "group_whole_mute" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupWholeMuteEventData),
+            "group_nudge" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupNudgeEventData),
+            "group_file_upload" => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupFileUploadEventData),
             _ => new MilkyUnknownEventData(eventType, dataElement.Clone()),
         };
 
@@ -303,12 +501,6 @@ public sealed class MilkyEventJsonConverter : JsonConverter<MilkyEvent>
                 break;
         }
         writer.WriteEndObject();
-    }
-
-    private static MilkyEventData? ReadCommon(string eventType, JsonElement dataElement, JsonSerializerOptions options)
-    {
-        MilkyCommonEventData? data = dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyCommonEventData);
-        return data is null ? null : data with { Kind = eventType };
     }
 
     private static MilkyEventData? ReadMessageReceive(JsonElement dataElement, JsonSerializerOptions options)

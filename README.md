@@ -77,6 +77,13 @@ await session.RunSseEventLoopAsync(cancellationToken);
 await session.RunWebSocketEventLoopAsync(cancellationToken);
 ```
 
+For long-running bots, use reconnecting loops:
+
+```csharp
+await session.RunReconnectingSseEventLoopAsync(cancellationToken: cancellationToken);
+await session.RunReconnectingWebSocketEventLoopAsync(cancellationToken: cancellationToken);
+```
+
 For WebHook integrations, validate the incoming `Authorization` header and parse the request body:
 
 ```csharp
@@ -90,6 +97,16 @@ if (milkyEvent is not null)
 {
     await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken);
 }
+```
+
+For a lightweight self-hosted WebHook endpoint:
+
+```csharp
+await MilkyCommunication.RunWebhookListenerAsync(
+    "http://127.0.0.1:8080/milky-webhook/",
+    session.EventPipeline,
+    accessToken,
+    cancellationToken);
 ```
 
 ## Parse Event Payloads
@@ -115,6 +132,11 @@ MilkyEvent? parsed = MilkyEventParser.ParseJson(json);
 if (parsed?.Data is MilkyMessageReceiveEventData received)
 {
     Console.WriteLine(received.Message.Segments.OfType<MilkyIncomingTextSegment>().FirstOrDefault()?.Text);
+}
+
+if (parsed?.Data is MilkyGroupMemberIncreaseEventData increased)
+{
+    Console.WriteLine($"{increased.UserId} joined {increased.GroupId}");
 }
 ```
 
@@ -149,4 +171,4 @@ if (parsed is not null)
 
 ## Scope
 
-This package intentionally does not include a hosted webhook server, CLI, or UI. It focuses on Milky's HTTP `/api/{apiName}` action contract, event transport clients, and event JSON parsing surface.
+This package intentionally does not include a CLI or UI. It focuses on Milky's HTTP `/api/{apiName}` action contract, event transport clients, a lightweight WebHook listener, and event JSON parsing surface.

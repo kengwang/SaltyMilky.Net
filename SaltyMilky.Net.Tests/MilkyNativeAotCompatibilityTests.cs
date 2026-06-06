@@ -142,7 +142,7 @@ public sealed class MilkyNativeAotCompatibilityTests
         MilkyEvent? parsed = MilkyEventParser.ParseJson(json);
 
         await Assert.That(parsed).IsNotNull();
-        await Assert.That(parsed!.Data).IsTypeOf<MilkyCommonEventData>();
+        await Assert.That(parsed!.Data).IsTypeOf<MilkyGroupMemberIncreaseEventData>();
         MilkyCommonEventData data = (MilkyCommonEventData)parsed.Data;
         await Assert.That(data.EventType).IsEqualTo("group_member_increase");
         await Assert.That(data.InvitorId).IsEqualTo(111222333);
@@ -171,11 +171,70 @@ public sealed class MilkyNativeAotCompatibilityTests
         MilkyEvent? parsed = MilkyEventParser.ParseJson(json);
 
         await Assert.That(parsed).IsNotNull();
-        await Assert.That(parsed!.Data).IsTypeOf<MilkyCommonEventData>();
+        await Assert.That(parsed!.Data).IsTypeOf<MilkyGroupMessageReactionEventData>();
         MilkyCommonEventData data = (MilkyCommonEventData)parsed.Data;
         await Assert.That(data.EventType).IsEqualTo("group_message_reaction");
         await Assert.That(data.IsAdd).IsTrue();
         await Assert.That(data.ReactionType).IsEqualTo("face");
+    }
+
+    [Test]
+    public async Task ReadSseEventsWithReconnectAsync_CancelledToken_Completes()
+    {
+        using HttpClient client = new(new CaptureHandler("{}", "text/event-stream")) { BaseAddress = new Uri("http://localhost/") };
+        using CancellationTokenSource cts = new();
+        await cts.CancelAsync();
+
+        MilkyEvent[] events = await CollectAsync(MilkyCommunication.ReadSseEventsWithReconnectAsync(client, TimeSpan.Zero, cts.Token));
+
+        await Assert.That(events.Length).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task RunWebhookListenerAsync_ValidRequest_DispatchesEvent()
+    {
+        string prefix = $"http://127.0.0.1:{Random.Shared.Next(20000, 50000)}/milky-webhook/";
+        CountingPlugin plugin = new();
+        MilkyEventPipeline pipeline = new();
+        pipeline.Use(plugin.Execute);
+        using CancellationTokenSource cts = new(TimeSpan.FromSeconds(10));
+        Task listenerTask = MilkyCommunication.RunWebhookListenerAsync(prefix, pipeline, "secret", cts.Token);
+
+        using HttpClient client = new();
+        using HttpRequestMessage request = new(HttpMethod.Post, prefix)
+        {
+            Content = new StringContent(MessageReceiveJson, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "secret");
+
+        using HttpResponseMessage response = await client.SendAsync(request, cts.Token);
+        await cts.CancelAsync();
+        await listenerTask;
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.NoContent);
+        await Assert.That(plugin.ReceivedMessages).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RunWebhookListenerAsync_InvalidBearerToken_ReturnsUnauthorized()
+    {
+        string prefix = $"http://127.0.0.1:{Random.Shared.Next(20000, 50000)}/milky-webhook/";
+        MilkyEventPipeline pipeline = new();
+        using CancellationTokenSource cts = new(TimeSpan.FromSeconds(10));
+        Task listenerTask = MilkyCommunication.RunWebhookListenerAsync(prefix, pipeline, "secret", cts.Token);
+
+        using HttpClient client = new();
+        using HttpRequestMessage request = new(HttpMethod.Post, prefix)
+        {
+            Content = new StringContent(MessageReceiveJson, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrong");
+
+        using HttpResponseMessage response = await client.SendAsync(request, cts.Token);
+        await cts.CancelAsync();
+        await listenerTask;
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.Unauthorized);
     }
 
     [Test]
