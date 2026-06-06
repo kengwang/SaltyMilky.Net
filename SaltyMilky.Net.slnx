@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SaltyMilky.Net/SaltyMilky.Net.csproj" />
+  <Project Path="SaltyMilky.Net.Tests/SaltyMilky.Net.Tests.csproj" />
+  <Project Path="SaltyMilky.Net.NativeAotSmoke/SaltyMilky.Net.NativeAotSmoke.csproj" />
+</Solution>

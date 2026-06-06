@@ -1,0 +1,15 @@
+bin/
+obj/
+tmp/
+.omo/
+
+.vs/
+.vscode/
+.idea/
+
+TestResults/
+coverage/
+*.user
+*.suo
+*.nupkg
+*.snupkg
