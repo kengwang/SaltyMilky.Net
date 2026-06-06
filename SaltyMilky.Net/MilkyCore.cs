@@ -1,8 +1,8 @@
 using System.Net.Http.Headers;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using System.Text.Json.Serialization;
 using System.Text.Unicode;
@@ -115,8 +115,6 @@ public abstract class MilkyActionSender
     /// <param name="action">The action to invoke.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The action result.</returns>
-    [RequiresUnreferencedCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization. Use AOT-safe overloads when available.")]
-    [RequiresDynamicCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization.")]
     public abstract Task<MilkyActionResult?> InvokeActionAsync(MilkyAction action, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -126,8 +124,6 @@ public abstract class MilkyActionSender
     /// <param name="action">The action to invoke.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The action result.</returns>
-    [RequiresUnreferencedCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization. Use AOT-safe overloads when available.")]
-    [RequiresDynamicCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization.")]
     public abstract Task<MilkyActionResult<TData>?> InvokeActionAsync<TData>(MilkyAction action, CancellationToken cancellationToken = default);
 }
 
@@ -233,21 +229,17 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
     public HttpClient Client { get; }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization. Use AOT-safe overloads when available.")]
-    [RequiresDynamicCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization.")]
     public override async Task<MilkyActionResult?> InvokeActionAsync(MilkyAction action, CancellationToken cancellationToken = default)
     {
         return await InvokeActionAsync<MilkyEmptyObject>(action, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    [RequiresUnreferencedCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization. Use AOT-safe overloads when available.")]
-    [RequiresDynamicCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization.")]
     public override async Task<MilkyActionResult<TData>?> InvokeActionAsync<TData>(MilkyAction action, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(action);
 
-        string json = JsonSerializer.Serialize(action.GetParamsModel(), MilkyJson.Options);
+        string json = SerializeParams(action.GetParamsModel());
         using StringContent content = new(json, Encoding.UTF8, "application/json");
         using HttpResponseMessage response = await Client.PostAsync($"api/{action.ApiName}", content, cancellationToken).ConfigureAwait(false);
 
@@ -271,7 +263,7 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
         TData? data = default;
         if (raw.Data.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null)
         {
-            data = raw.Data.Deserialize<TData>(MilkyJson.Options);
+            data = (TData?)raw.Data.Deserialize(typeof(TData), MilkyJsonSerializerContext.Default);
         }
 
         return new MilkyActionResult<TData>
@@ -280,6 +272,17 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
             RetCode = raw.RetCode,
             Message = raw.Message,
             Data = data,
+        };
+    }
+
+    private static string SerializeParams(object parameters)
+    {
+        return parameters switch
+        {
+            JsonNode node => node.ToJsonString(MilkyJson.Options),
+            JsonElement element => element.GetRawText(),
+            MilkyEmptyObject => "{}",
+            _ => throw new NotSupportedException("Milky API parameters must be a JsonNode, JsonElement, or MilkyEmptyObject when reflection-based JSON serialization is disabled."),
         };
     }
 }
@@ -360,8 +363,6 @@ public static partial class MilkyActionSessionExtensions
     /// <summary>
     /// Invokes an arbitrary Milky API.
     /// </summary>
-    [RequiresUnreferencedCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization. Use typed SDK methods for AOT-sensitive applications.")]
-    [RequiresDynamicCode("Generic Milky API invocation uses reflection-based System.Text.Json serialization.")]
     public static Task<MilkyActionResult<TData>?> InvokeApiAsync<TData>(this IMilkyActionSession session, string apiName, object? parameters = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);

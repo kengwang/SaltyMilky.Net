@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net;
 using SaltyMilky.Net;
 using TUnit.Assertions;
 using TUnit.Core;
@@ -41,6 +42,33 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(data.Message.Segments.Count).IsEqualTo(1);
         await Assert.That(data.Message.Segments[0]).IsTypeOf<MilkyIncomingTextSegment>();
         await Assert.That(((MilkyIncomingTextSegment)data.Message.Segments[0]).Text).IsEqualTo("ping");
+    }
+
+    [Test]
+    public async Task ParseJson_InlineMessageReceive_ReturnsTypedMessageReceiveData()
+    {
+        const string json =
+            """
+            {
+              "event_type": "message_receive",
+              "time": 1710000000,
+              "self_id": 10000,
+              "data": {
+                "message_scene": "friend",
+                "peer_id": 123456789,
+                "message_seq": 42,
+                "sender_id": 123456789,
+                "time": 1710000000,
+                "segments": [{ "type": "text", "data": { "text": "ping" } }]
+              }
+            }
+            """;
+
+        MilkyEvent? parsed = MilkyEventParser.ParseJson(json);
+
+        await Assert.That(parsed).IsNotNull();
+        await Assert.That(parsed!.Data).IsTypeOf<MilkyMessageReceiveEventData>();
+        await Assert.That(((MilkyMessageReceiveEventData)parsed.Data).Message.MessageSeq).IsEqualTo(42);
     }
 
     [Test]
@@ -141,6 +169,38 @@ public sealed class MilkyNativeAotCompatibilityTests
 
         await Assert.That(plugin.ReceivedMessages).IsEqualTo(1);
         await Assert.That(plugin.LastText).IsEqualTo("ping");
+    }
+
+    [Test]
+    public async Task SendPrivateMessageAsync_UsesAotSafeJsonParams()
+    {
+        CaptureHandler handler = new("""{"status":"ok","retcode":0,"data":{"message_seq":99,"time":1710000001}}""");
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        using MilkyHttpSession session = new(new MilkyHttpSessionOptions { HttpClient = client });
+
+        MilkyActionResult<MilkySendMessageResult>? result = await session.SendPrivateMessageAsync(123456789, new MilkyMessage("hello"));
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Data!.MessageSeq).IsEqualTo(99);
+        await Assert.That(handler.RequestPath).IsEqualTo("/api/send_private_message");
+        await Assert.That(handler.RequestBody).IsEqualTo("""{"user_id":123456789,"message":[{"type":"text","data":{"text":"hello"}}]}""");
+    }
+
+    private sealed class CaptureHandler(string responseJson) : HttpMessageHandler
+    {
+        public string? RequestPath { get; private set; }
+
+        public string? RequestBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestPath = request.RequestUri?.PathAndQuery;
+            RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(responseJson),
+            };
+        }
     }
 
     private sealed class CountingPlugin : MilkyEventPlugin
