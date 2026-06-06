@@ -1,6 +1,6 @@
 # SaltyMilky.Net
 
-SaltyMilky.Net is a first buildable .NET 8 SDK for the Milky protocol. It provides a BCL-only library with HTTP API invocation, typed convenience methods, message segment models, and event parsing for WebSocket/WebHook JSON and SSE `data:` lines.
+SaltyMilky.Net is a .NET 8 SDK for the Milky protocol. It provides a BCL-only library with HTTP API invocation, typed convenience methods, message segment models, event parsing, and event transport helpers for SSE, WebSocket, and WebHook communication.
 
 ## Install
 
@@ -48,7 +48,51 @@ MilkyActionResult<MilkyResourceTempUrlResult>? response = await session.InvokeAp
     new { resource_id = "resource-id" });
 ```
 
-## Parse Events
+## Receive Events
+
+Milky supports three event push models on top of HTTP API calls: SSE, WebSocket, and WebHook.
+
+For SSE, connect to the protocol-side `/event` endpoint:
+
+```csharp
+await foreach (MilkyEvent milkyEvent in session.ReadSseEventsAsync(cancellationToken))
+{
+    await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken);
+}
+```
+
+For WebSocket, connect to the same `/event` endpoint using the WebSocket transport:
+
+```csharp
+await foreach (MilkyEvent milkyEvent in session.ReadWebSocketEventsAsync(cancellationToken))
+{
+    await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken);
+}
+```
+
+You can also run either event loop directly:
+
+```csharp
+await session.RunSseEventLoopAsync(cancellationToken);
+await session.RunWebSocketEventLoopAsync(cancellationToken);
+```
+
+For WebHook integrations, validate the incoming `Authorization` header and parse the request body:
+
+```csharp
+MilkyEvent? milkyEvent = await MilkyCommunication.ReadWebhookEventAsync(
+    request.Body,
+    request.Headers.Authorization.ToString(),
+    accessToken,
+    cancellationToken);
+
+if (milkyEvent is not null)
+{
+    await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken);
+}
+```
+
+## Parse Event Payloads
 
 ```csharp
 string json = """
@@ -74,11 +118,11 @@ if (parsed?.Data is MilkyMessageReceiveEventData received)
 }
 ```
 
-For SSE streams, pass accumulated text blocks to `MilkyEventParser.ParseSseEvents`; only `data:` lines are parsed as Milky event JSON.
+For existing transports, parse JSON payloads with `MilkyEventParser.ParseJson` or accumulated SSE text blocks with `MilkyEventParser.ParseSseEvents`; only `data:` lines are parsed as Milky event JSON.
 
 ## Event Pipeline and Plugins
 
-`MilkyHttpSession` also exposes an event pipeline. Feed parsed events into the pipeline from your WebSocket, SSE, or WebHook integration:
+`MilkyHttpSession` also exposes an event pipeline. Feed parsed events into the pipeline from WebSocket, SSE, or WebHook integrations:
 
 ```csharp
 public sealed class MyMilkyPlugin : MilkyEventPlugin
@@ -105,4 +149,4 @@ if (parsed is not null)
 
 ## Scope
 
-This first version intentionally does not include a hosted webhook server, CLI, UI, or WebSocket transport. It focuses on Milky's HTTP `/api/{apiName}` action contract and event JSON parsing surface.
+This package intentionally does not include a hosted webhook server, CLI, or UI. It focuses on Milky's HTTP `/api/{apiName}` action contract, event transport clients, and event JSON parsing surface.

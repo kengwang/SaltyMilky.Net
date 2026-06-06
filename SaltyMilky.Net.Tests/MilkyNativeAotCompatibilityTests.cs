@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Net;
+using System.Text;
 using SaltyMilky.Net;
 using TUnit.Assertions;
 using TUnit.Core;
@@ -80,6 +81,45 @@ public sealed class MilkyNativeAotCompatibilityTests
 
         await Assert.That(events.Length).IsEqualTo(1);
         await Assert.That(events[0].Data).IsTypeOf<MilkyMessageReceiveEventData>();
+    }
+
+    [Test]
+    public async Task ReadSseEventsAsync_Stream_ReturnsParsedEvents()
+    {
+        string sseText = string.Join('\n', MessageReceiveJson.Replace("\r\n", "\n").Split('\n').Select(line => $"data: {line}")) + "\n\n";
+        await using MemoryStream stream = new(Encoding.UTF8.GetBytes(sseText));
+
+        MilkyEvent[] events = await CollectAsync(MilkyCommunication.ReadSseEventsAsync(stream));
+
+        await Assert.That(events.Length).IsEqualTo(1);
+        await Assert.That(events[0].Data).IsTypeOf<MilkyMessageReceiveEventData>();
+    }
+
+    [Test]
+    public async Task ReadWebhookEventAsync_ValidBearerToken_ReturnsParsedEvent()
+    {
+        await using MemoryStream stream = new(Encoding.UTF8.GetBytes(MessageReceiveJson));
+
+        MilkyEvent? milkyEvent = await MilkyCommunication.ReadWebhookEventAsync(stream, "Bearer secret", "secret");
+
+        await Assert.That(milkyEvent).IsNotNull();
+        await Assert.That(milkyEvent!.Data).IsTypeOf<MilkyMessageReceiveEventData>();
+    }
+
+    [Test]
+    public async Task ReadWebhookEventAsync_InvalidBearerToken_Throws()
+    {
+        await using MemoryStream stream = new(Encoding.UTF8.GetBytes(MessageReceiveJson));
+
+        await Assert.That(async () => await MilkyCommunication.ReadWebhookEventAsync(stream, "Bearer wrong", "secret")).Throws<UnauthorizedAccessException>();
+    }
+
+    [Test]
+    public async Task ToWebSocketUri_HttpEventUri_UsesWebSocketScheme()
+    {
+        Uri uri = MilkyCommunication.ToWebSocketUri(new Uri("https://example.com/event?access_token=abc"));
+
+        await Assert.That(uri.ToString()).IsEqualTo("wss://example.com/event?access_token=abc");
     }
 
     [Test]
@@ -186,21 +226,50 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(handler.RequestBody).IsEqualTo("""{"user_id":123456789,"message":[{"type":"text","data":{"text":"hello"}}]}""");
     }
 
-    private sealed class CaptureHandler(string responseJson) : HttpMessageHandler
+    [Test]
+    public async Task ReadSseEventsAsync_HttpSession_UsesEventEndpointAndBearerToken()
+    {
+        string sseText = string.Join('\n', MessageReceiveJson.Replace("\r\n", "\n").Split('\n').Select(line => $"data: {line}")) + "\n\n";
+        CaptureHandler handler = new(sseText, "text/event-stream");
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        using MilkyHttpSession session = new(new MilkyHttpSessionOptions { HttpClient = client, AccessToken = "secret" });
+
+        MilkyEvent[] events = await CollectAsync(session.ReadSseEventsAsync());
+
+        await Assert.That(events.Length).IsEqualTo(1);
+        await Assert.That(handler.RequestPath).IsEqualTo("/event");
+        await Assert.That(handler.Authorization).IsEqualTo("Bearer secret");
+    }
+
+    private sealed class CaptureHandler(string responseText, string mediaType = "application/json") : HttpMessageHandler
     {
         public string? RequestPath { get; private set; }
 
         public string? RequestBody { get; private set; }
 
+        public string? Authorization { get; private set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestPath = request.RequestUri?.PathAndQuery;
+            Authorization = request.Headers.Authorization?.ToString();
             RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(responseJson),
+                Content = new StringContent(responseText, Encoding.UTF8, mediaType),
             };
         }
+    }
+
+    private static async Task<MilkyEvent[]> CollectAsync(IAsyncEnumerable<MilkyEvent> events)
+    {
+        List<MilkyEvent> result = [];
+        await foreach (MilkyEvent milkyEvent in events)
+        {
+            result.Add(milkyEvent);
+        }
+
+        return result.ToArray();
     }
 
     private sealed class CountingPlugin : MilkyEventPlugin

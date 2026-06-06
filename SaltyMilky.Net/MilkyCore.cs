@@ -187,9 +187,27 @@ public sealed class MilkyHttpSession : IMilkyActionSession, IMilkyEventSession, 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.AccessToken);
         }
 
+        Client = client;
+        AccessToken = options.AccessToken;
+        EventUri = MilkyCommunication.BuildEventUri(client.BaseAddress);
         ActionSender = new MilkyHttpActionSender(client);
         EventPipeline = new MilkyEventPipeline();
     }
+
+    /// <summary>
+    /// Gets the underlying HTTP client.
+    /// </summary>
+    public HttpClient Client { get; }
+
+    /// <summary>
+    /// Gets the access token used for API and event connections.
+    /// </summary>
+    public string? AccessToken { get; }
+
+    /// <summary>
+    /// Gets the protocol-side event endpoint URI.
+    /// </summary>
+    public Uri EventUri { get; }
 
     /// <inheritdoc />
     public MilkyActionSender ActionSender { get; }
