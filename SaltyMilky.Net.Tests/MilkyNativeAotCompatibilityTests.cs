@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Net;
 using System.Text;
 using SaltyMilky.Net;
@@ -9,6 +10,8 @@ namespace SaltyMilky.Net.Tests;
 
 public sealed class MilkyNativeAotCompatibilityTests
 {
+    // Official documentation baseline: Milky v1.2.2 API/struct/compatibility pages.
+
     private const string MessageReceiveJson =
         """
         {
@@ -257,6 +260,131 @@ public sealed class MilkyNativeAotCompatibilityTests
     }
 
     [Test]
+    public async Task DeserializeIncomingSegment_UnknownSegment_ReturnsUnsupportedTextSegment()
+    {
+        const string json = "{\"type\":\"new_segment\",\"data\":{\"value\":1}}";
+
+        MilkyIncomingSegment? segment = JsonSerializer.Deserialize(json, MilkyJson.IncomingSegmentTypeInfo);
+
+        await Assert.That(segment).IsTypeOf<MilkyIncomingTextSegment>();
+        await Assert.That(((MilkyIncomingTextSegment)segment!).Text).IsEqualTo("[unsupported Milky segment: new_segment]");
+    }
+
+    [Test]
+    public async Task DeserializeIncomingSegments_DocumentedFields_DoNotRegress()
+    {
+        MilkyIncomingSegment? reply = JsonSerializer.Deserialize(
+            """
+            {"type":"reply","data":{"message_seq":42,"sender_id":123,"sender_name":"alice","time":1710000000,"segments":[{"type":"text","data":{"text":"quoted"}}]}}
+            """,
+            MilkyJson.IncomingSegmentTypeInfo);
+        MilkyIncomingSegment? forward = JsonSerializer.Deserialize(
+            """
+            {"type":"forward","data":{"forward_id":"fwd","title":"title","preview":["a","b"],"summary":"summary"}}
+            """,
+            MilkyJson.IncomingSegmentTypeInfo);
+        MilkyIncomingSegment? marketFace = JsonSerializer.Deserialize(
+            """
+            {"type":"market_face","data":{"emoji_package_id":1,"emoji_id":"e","key":"k","summary":"s","url":"https://example.com/e"}}
+            """,
+            MilkyJson.IncomingSegmentTypeInfo);
+        MilkyIncomingSegment? lightApp = JsonSerializer.Deserialize(
+            """
+            {"type":"light_app","data":{"app_name":"app","json_payload":"{}"}}
+            """,
+            MilkyJson.IncomingSegmentTypeInfo);
+        MilkyIncomingSegment? xml = JsonSerializer.Deserialize(
+            """
+            {"type":"xml","data":{"service_id":60,"xml_payload":"<x/>"}}
+            """,
+            MilkyJson.IncomingSegmentTypeInfo);
+        MilkyIncomingSegment? image = JsonSerializer.Deserialize(
+            """
+            {"type":"image","data":{"resource_id":"r","temp_url":"https://example.com/i","width":1,"height":2,"summary":"summary","sub_type":"sticker"}}
+            """,
+            MilkyJson.IncomingSegmentTypeInfo);
+
+        await Assert.That(((MilkyIncomingReplySegment)reply!).SenderName).IsEqualTo("alice");
+        await Assert.That(((MilkyIncomingForwardSegment)forward!).Preview![1]).IsEqualTo("b");
+        await Assert.That(((MilkyMarketFaceIncomingSegment)marketFace!).Key).IsEqualTo("k");
+        await Assert.That(((MilkyIncomingLightAppSegment)lightApp!).AppName).IsEqualTo("app");
+        await Assert.That(((MilkyXmlIncomingSegment)xml!).ServiceId).IsEqualTo(60);
+        await Assert.That(((MilkyIncomingImageSegment)image!).SubType).IsEqualTo("sticker");
+    }
+
+    [Test]
+    public async Task SerializeOutgoingSegments_DocumentedFields_DoNotRegress()
+    {
+        MilkyImageSegment image = new("file:///tmp/a.png", "sticker", "summary");
+        MilkyForwardSegment forward = new([
+            new MilkyOutgoingForwardedMessage(123, "alice", new MilkyMessage("hello")),
+        ])
+        {
+            Title = "title",
+            Preview = ["a"],
+            Summary = "summary",
+            Prompt = "prompt",
+        };
+        MilkyLightAppSegment lightApp = new("{}");
+
+        string imageJson = JsonSerializer.Serialize<MilkyOutgoingSegment>(image, MilkyJson.OutgoingSegmentTypeInfo);
+        string forwardJson = JsonSerializer.Serialize<MilkyOutgoingSegment>(forward, MilkyJson.OutgoingSegmentTypeInfo);
+        string lightAppJson = JsonSerializer.Serialize<MilkyOutgoingSegment>(lightApp, MilkyJson.OutgoingSegmentTypeInfo);
+
+        await Assert.That(imageJson).Contains("\"sub_type\":\"sticker\"");
+        await Assert.That(imageJson).Contains("\"summary\":\"summary\"");
+        await Assert.That(forwardJson).Contains("\"prompt\":\"prompt\"");
+        await Assert.That(lightAppJson).Contains("\"json_payload\":\"{}\"");
+    }
+
+    [Test]
+    public async Task DeserializeGroupNotifications_DocumentedTypes_ReturnTypedNotifications()
+    {
+        const string json =
+            """
+            {
+              "notifications": [
+                {"type":"join_request","group_id":100,"notification_seq":1,"is_filtered":true,"initiator_id":11,"state":"pending","comment":"hi"},
+                {"type":"admin_change","group_id":100,"notification_seq":2,"user_id":22,"operator_id":33,"is_set":true},
+                {"type":"kick","group_id":100,"notification_seq":3,"user_id":44,"operator_id":55},
+                {"type":"quit","group_id":100,"notification_seq":4,"user_id":66},
+                {"type":"invited_join_request","group_id":100,"notification_seq":5,"initiator_id":77,"target_user_id":88,"state":"pending"}
+              ],
+              "next_notification_seq": 6
+            }
+            """;
+
+        MilkyGroupNotificationsResult? result = JsonSerializer.Deserialize<MilkyGroupNotificationsResult>(json, MilkyJson.Options);
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Notifications[0]).IsTypeOf<MilkyJoinRequestGroupNotification>();
+        await Assert.That(result.Notifications[1]).IsTypeOf<MilkyAdminChangeGroupNotification>();
+        await Assert.That(result.Notifications[2]).IsTypeOf<MilkyKickGroupNotification>();
+        await Assert.That(result.Notifications[3]).IsTypeOf<MilkyQuitGroupNotification>();
+        await Assert.That(result.Notifications[4]).IsTypeOf<MilkyInvitedJoinRequestGroupNotification>();
+        await Assert.That(result.Notifications[0].InitiatorId).IsEqualTo(11);
+        await Assert.That(result.Notifications[1].OperatorId).IsEqualTo(33);
+        await Assert.That(result.Notifications[4].TargetUserId).IsEqualTo(88);
+    }
+
+    [Test]
+    public async Task DeserializeGroupNotification_UnknownType_ReturnsUnknownNotification()
+    {
+        const string json =
+            """
+            {"notifications":[{"type":"future_notification","group_id":100,"notification_seq":1,"future":true}],"next_notification_seq":2}
+            """;
+
+        MilkyGroupNotificationsResult? result = JsonSerializer.Deserialize<MilkyGroupNotificationsResult>(json, MilkyJson.Options);
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Notifications[0]).IsTypeOf<MilkyUnknownGroupNotification>();
+        MilkyUnknownGroupNotification notification = (MilkyUnknownGroupNotification)result.Notifications[0];
+        await Assert.That(notification.Type).IsEqualTo("future_notification");
+        await Assert.That(notification.RawData.GetProperty("future").GetBoolean()).IsTrue();
+    }
+
+    [Test]
     public async Task ExecuteAsync_MessageReceivePlugin_RunsHandler()
     {
         MilkyEvent parsed = MilkyEventParser.ParseJson(MessageReceiveJson)!;
@@ -283,6 +411,22 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(result!.Data!.MessageSeq).IsEqualTo(99);
         await Assert.That(handler.RequestPath).IsEqualTo("/api/send_private_message");
         await Assert.That(handler.RequestBody).IsEqualTo("""{"user_id":123456789,"message":[{"type":"text","data":{"text":"hello"}}]}""");
+    }
+
+    [Test]
+    public async Task InvokeApiAsync_JsonObjectParameters_UsesAotSafeJsonParams()
+    {
+        CaptureHandler handler = new("""{"status":"ok","retcode":0,"data":{"url":"https://example.com/resource"}}""");
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        using MilkyHttpSession session = new(new MilkyHttpSessionOptions { HttpClient = client });
+
+        MilkyActionResult<MilkyResourceTempUrlResult>? result = await session.InvokeApiAsync<MilkyResourceTempUrlResult>(
+            "get_resource_temp_url",
+            new JsonObject { ["resource_id"] = "resource-id" });
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Data!.Url).IsEqualTo("https://example.com/resource");
+        await Assert.That(handler.RequestBody).IsEqualTo("""{"resource_id":"resource-id"}""");
     }
 
     [Test]

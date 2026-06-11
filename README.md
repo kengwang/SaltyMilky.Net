@@ -14,6 +14,7 @@ dotnet add reference ./SaltyMilky.Net/SaltyMilky.Net.csproj
 
 ```csharp
 using SaltyMilky.Net;
+using System.Text.Json.Nodes;
 
 using MilkyHttpSession session = new(new MilkyHttpSessionOptions
 {
@@ -45,7 +46,7 @@ Console.WriteLine(result?.Data?.MessageSeq);
 ```csharp
 MilkyActionResult<MilkyResourceTempUrlResult>? response = await session.InvokeApiAsync<MilkyResourceTempUrlResult>(
     "get_resource_temp_url",
-    new { resource_id = "resource-id" });
+    new JsonObject { ["resource_id"] = "resource-id" });
 ```
 
 ## Receive Events
@@ -141,6 +142,8 @@ if (parsed?.Data is MilkyGroupMemberIncreaseEventData increased)
 ```
 
 For existing transports, parse JSON payloads with `MilkyEventParser.ParseJson` or accumulated SSE text blocks with `MilkyEventParser.ParseSseEvents`; only `data:` lines are parsed as Milky event JSON.
+
+The SDK tracks the public Milky v1.2.2 documentation surface for API helpers, event payloads, incoming/outgoing message segments, and group notification variants. Unknown event subtypes are preserved as `MilkyUnknownEventData`; unknown incoming message segments are converted to a text segment such as `[unsupported Milky segment: future_segment]` to match Milky compatibility guidance.
 
 ## Event Pipeline and Plugins
 

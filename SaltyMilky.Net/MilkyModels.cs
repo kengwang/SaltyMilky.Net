@@ -663,7 +663,7 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
             "market_face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMarketFaceIncomingSegment),
             "light_app" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingLightAppSegment),
             "xml" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyXmlIncomingSegment),
-            _ => new MilkyUnknownIncomingSegment(type, data.Clone()),
+            _ => new MilkyIncomingTextSegment { Text = $"[unsupported Milky segment: {type}]" },
         };
     }
 
@@ -945,6 +945,7 @@ public record class MilkyFriendRequest
 }
 
 /// <summary>Group notification information.</summary>
+[JsonConverter(typeof(MilkyGroupNotificationJsonConverter))]
 public record class MilkyGroupNotification
 {
     /// <summary>Gets or sets type.</summary>
@@ -962,6 +963,9 @@ public record class MilkyGroupNotification
     /// <summary>Gets or sets initiator QQ number.</summary>
     [JsonPropertyName("initiator_id")]
     public long? InitiatorId { get; set; }
+    /// <summary>Gets or sets user QQ number.</summary>
+    [JsonPropertyName("user_id")]
+    public long? UserId { get; set; }
     /// <summary>Gets or sets target QQ number.</summary>
     [JsonPropertyName("target_user_id")]
     public long? TargetUserId { get; set; }
@@ -977,6 +981,155 @@ public record class MilkyGroupNotification
     /// <summary>Gets or sets whether set.</summary>
     [JsonPropertyName("is_set")]
     public bool? IsSet { get; set; }
+}
+
+/// <summary>Group join request notification.</summary>
+public record class MilkyJoinRequestGroupNotification : MilkyGroupNotification
+{
+    /// <summary>Initializes a group join request notification.</summary>
+    public MilkyJoinRequestGroupNotification() => Type = "join_request";
+}
+
+/// <summary>Group administrator change notification.</summary>
+public record class MilkyAdminChangeGroupNotification : MilkyGroupNotification
+{
+    /// <summary>Initializes a group administrator change notification.</summary>
+    public MilkyAdminChangeGroupNotification() => Type = "admin_change";
+}
+
+/// <summary>Group member kick notification.</summary>
+public record class MilkyKickGroupNotification : MilkyGroupNotification
+{
+    /// <summary>Initializes a group member kick notification.</summary>
+    public MilkyKickGroupNotification() => Type = "kick";
+}
+
+/// <summary>Group member quit notification.</summary>
+public record class MilkyQuitGroupNotification : MilkyGroupNotification
+{
+    /// <summary>Initializes a group member quit notification.</summary>
+    public MilkyQuitGroupNotification() => Type = "quit";
+}
+
+/// <summary>Group invited-join request notification.</summary>
+public record class MilkyInvitedJoinRequestGroupNotification : MilkyGroupNotification
+{
+    /// <summary>Initializes a group invited-join request notification.</summary>
+    public MilkyInvitedJoinRequestGroupNotification() => Type = "invited_join_request";
+}
+
+/// <summary>Unknown group notification preserved as raw JSON.</summary>
+public record class MilkyUnknownGroupNotification : MilkyGroupNotification
+{
+    /// <summary>Initializes an unknown group notification.</summary>
+    public MilkyUnknownGroupNotification(string notificationType, JsonElement rawData)
+    {
+        Type = notificationType;
+        RawData = rawData;
+    }
+
+    /// <summary>Gets the raw notification JSON.</summary>
+    public JsonElement RawData { get; }
+}
+
+/// <summary>JSON converter for group notification union variants.</summary>
+public sealed class MilkyGroupNotificationJsonConverter : JsonConverter<MilkyGroupNotification>
+{
+    /// <inheritdoc />
+    public override MilkyGroupNotification? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using JsonDocument document = JsonDocument.ParseValue(ref reader);
+        JsonElement root = document.RootElement;
+        string type = root.TryGetProperty("type", out JsonElement typeElement) ? typeElement.GetString() ?? string.Empty : string.Empty;
+
+        return type switch
+        {
+            "join_request" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyJoinRequestGroupNotification),
+            "admin_change" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyAdminChangeGroupNotification),
+            "kick" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyKickGroupNotification),
+            "quit" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyQuitGroupNotification),
+            "invited_join_request" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyInvitedJoinRequestGroupNotification),
+            _ => new MilkyUnknownGroupNotification(type, root.Clone()),
+        };
+    }
+
+    /// <inheritdoc />
+    public override void Write(Utf8JsonWriter writer, MilkyGroupNotification value, JsonSerializerOptions options)
+    {
+        switch (value)
+        {
+            case MilkyJoinRequestGroupNotification notification:
+                JsonSerializer.Serialize(writer, notification, MilkyJsonSerializerContext.Default.MilkyJoinRequestGroupNotification);
+                break;
+            case MilkyAdminChangeGroupNotification notification:
+                JsonSerializer.Serialize(writer, notification, MilkyJsonSerializerContext.Default.MilkyAdminChangeGroupNotification);
+                break;
+            case MilkyKickGroupNotification notification:
+                JsonSerializer.Serialize(writer, notification, MilkyJsonSerializerContext.Default.MilkyKickGroupNotification);
+                break;
+            case MilkyQuitGroupNotification notification:
+                JsonSerializer.Serialize(writer, notification, MilkyJsonSerializerContext.Default.MilkyQuitGroupNotification);
+                break;
+            case MilkyInvitedJoinRequestGroupNotification notification:
+                JsonSerializer.Serialize(writer, notification, MilkyJsonSerializerContext.Default.MilkyInvitedJoinRequestGroupNotification);
+                break;
+            case MilkyUnknownGroupNotification notification:
+                notification.RawData.WriteTo(writer);
+                break;
+            default:
+                WriteBaseNotification(writer, value);
+                break;
+        }
+    }
+
+    private static void WriteBaseNotification(Utf8JsonWriter writer, MilkyGroupNotification notification)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("type", notification.Type);
+        writer.WriteNumber("group_id", notification.GroupId);
+        writer.WriteNumber("notification_seq", notification.NotificationSeq);
+        if (notification.IsFiltered is { } isFiltered)
+        {
+            writer.WriteBoolean("is_filtered", isFiltered);
+        }
+
+        if (notification.InitiatorId is { } initiatorId)
+        {
+            writer.WriteNumber("initiator_id", initiatorId);
+        }
+
+        if (notification.UserId is { } userId)
+        {
+            writer.WriteNumber("user_id", userId);
+        }
+
+        if (notification.TargetUserId is { } targetUserId)
+        {
+            writer.WriteNumber("target_user_id", targetUserId);
+        }
+
+        if (notification.State is not null)
+        {
+            writer.WriteString("state", notification.State);
+        }
+
+        if (notification.OperatorId is { } operatorId)
+        {
+            writer.WriteNumber("operator_id", operatorId);
+        }
+
+        if (notification.Comment is not null)
+        {
+            writer.WriteString("comment", notification.Comment);
+        }
+
+        if (notification.IsSet is { } isSet)
+        {
+            writer.WriteBoolean("is_set", isSet);
+        }
+
+        writer.WriteEndObject();
+    }
 }
 
 /// <summary>Incoming message.</summary>

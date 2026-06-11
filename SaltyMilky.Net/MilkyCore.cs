@@ -379,12 +379,32 @@ public sealed class MilkyActionResult<TData> : MilkyActionResult
 public static partial class MilkyActionSessionExtensions
 {
     /// <summary>
+    /// Invokes an arbitrary Milky API with AOT-safe JSON object parameters.
+    /// </summary>
+    public static Task<MilkyActionResult<TData>?> InvokeApiAsync<TData>(this IMilkyActionSession session, string apiName, JsonObject parameters, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(parameters);
+        return session.ActionSender.InvokeActionAsync<TData>(new MilkyApiAction<TData>(apiName, parameters), cancellationToken);
+    }
+
+    /// <summary>
     /// Invokes an arbitrary Milky API.
     /// </summary>
     public static Task<MilkyActionResult<TData>?> InvokeApiAsync<TData>(this IMilkyActionSession session, string apiName, object? parameters = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         return session.ActionSender.InvokeActionAsync<TData>(new MilkyApiAction<TData>(apiName, parameters), cancellationToken);
+    }
+
+    /// <summary>
+    /// Invokes an arbitrary Milky API without output data using AOT-safe JSON object parameters.
+    /// </summary>
+    public static Task<MilkyActionResult?> InvokeApiAsync(this IMilkyActionSession session, string apiName, JsonObject parameters, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(parameters);
+        return session.ActionSender.InvokeActionAsync(new MilkyApiAction<MilkyEmptyObject>(apiName, parameters), cancellationToken);
     }
 
     /// <summary>
