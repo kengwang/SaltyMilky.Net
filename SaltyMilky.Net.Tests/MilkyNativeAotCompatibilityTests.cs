@@ -271,6 +271,35 @@ public sealed class MilkyNativeAotCompatibilityTests
     }
 
     [Test]
+    public async Task SerializeOutgoingSegment_MarkdownSegment_UsesReflectionDisabledOptions()
+    {
+        MilkyMarkdownSegment markdown = new("# Title")
+        {
+            ExtensionData = new Dictionary<string, JsonElement>
+            {
+                ["template_id"] = JsonDocument.Parse("\"tpl\"").RootElement.Clone(),
+            },
+        };
+
+        string json = JsonSerializer.Serialize<MilkyOutgoingSegment>(markdown, MilkyJson.OutgoingSegmentTypeInfo);
+
+        await Assert.That(json).IsEqualTo("{\"type\":\"markdown\",\"data\":{\"content\":\"# Title\",\"template_id\":\"tpl\"}}");
+    }
+
+    [Test]
+    public async Task DeserializeIncomingSegment_MarkdownSegment_ReturnsTypedSegment()
+    {
+        const string json = "{\"type\":\"markdown\",\"data\":{\"content\":\"# Title\",\"template_id\":\"tpl\"}}";
+
+        MilkyIncomingSegment? segment = JsonSerializer.Deserialize(json, MilkyJson.IncomingSegmentTypeInfo);
+
+        await Assert.That(segment).IsTypeOf<MilkyIncomingMarkdownSegment>();
+        MilkyIncomingMarkdownSegment markdown = (MilkyIncomingMarkdownSegment)segment!;
+        await Assert.That(markdown.Content).IsEqualTo("# Title");
+        await Assert.That(markdown.ExtensionData!["template_id"].GetString()).IsEqualTo("tpl");
+    }
+
+    [Test]
     public async Task DeserializeIncomingSegments_DocumentedFields_DoNotRegress()
     {
         MilkyIncomingSegment? reply = JsonSerializer.Deserialize(

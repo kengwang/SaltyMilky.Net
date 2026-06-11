@@ -476,6 +476,31 @@ public record class MilkyLightAppSegment(string JsonPayload) : MilkyOutgoingSegm
 }
 
 /// <summary>
+/// Markdown segment.
+/// </summary>
+public record class MilkyMarkdownSegment : MilkyOutgoingSegment
+{
+    /// <summary>Initializes an empty Markdown segment for JSON deserialization.</summary>
+    [JsonConstructor]
+    public MilkyMarkdownSegment()
+    {
+    }
+
+    /// <summary>Initializes a Markdown segment.</summary>
+    public MilkyMarkdownSegment(string content) => Content = content;
+
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string Type => "markdown";
+    /// <summary>Gets the Markdown content.</summary>
+    [JsonPropertyName("content")]
+    public string Content { get; set; } = string.Empty;
+    /// <summary>Gets additional fields for implementation-specific Markdown payload variants.</summary>
+    [JsonIgnore]
+    public Dictionary<string, JsonElement>? ExtensionData { get; set; }
+}
+
+/// <summary>
 /// Incoming light app segment.
 /// </summary>
 public record class MilkyIncomingLightAppSegment : MilkyIncomingSegment
@@ -489,6 +514,22 @@ public record class MilkyIncomingLightAppSegment : MilkyIncomingSegment
     /// <summary>Gets or sets JSON payload.</summary>
     [JsonPropertyName("json_payload")]
     public string JsonPayload { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Incoming Markdown segment.
+/// </summary>
+public record class MilkyIncomingMarkdownSegment : MilkyIncomingSegment
+{
+    /// <inheritdoc />
+    [JsonIgnore]
+    public override string Type => "markdown";
+    /// <summary>Gets or sets the Markdown content.</summary>
+    [JsonPropertyName("content")]
+    public string Content { get; set; } = string.Empty;
+    /// <summary>Gets or sets additional fields for implementation-specific Markdown payload variants.</summary>
+    [JsonIgnore]
+    public Dictionary<string, JsonElement>? ExtensionData { get; set; }
 }
 
 /// <summary>
@@ -587,6 +628,7 @@ public sealed class MilkyOutgoingSegmentJsonConverter : JsonConverter<MilkyOutgo
             "video" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyVideoSegment),
             "forward" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyForwardSegment),
             "light_app" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLightAppSegment),
+            "markdown" => ReadMarkdownSegment(data),
             _ => throw new JsonException($"Unknown outgoing segment type: {type}"),
         };
     }
@@ -629,8 +671,51 @@ public sealed class MilkyOutgoingSegmentJsonConverter : JsonConverter<MilkyOutgo
             case MilkyLightAppSegment segment:
                 JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyLightAppSegment);
                 break;
+            case MilkyMarkdownSegment segment:
+                WriteMarkdownData(writer, segment.Content, segment.ExtensionData);
+                break;
             default:
                 throw new JsonException($"Unknown outgoing segment type: {value.GetType().Name}");
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static MilkyMarkdownSegment ReadMarkdownSegment(JsonElement data)
+    {
+        MilkyMarkdownSegment segment = new(data.TryGetProperty("content", out JsonElement content) ? content.GetString() ?? string.Empty : string.Empty);
+        Dictionary<string, JsonElement>? extensionData = null;
+        foreach (JsonProperty property in data.EnumerateObject())
+        {
+            if (property.NameEquals("content"))
+            {
+                continue;
+            }
+
+            extensionData ??= [];
+            extensionData[property.Name] = property.Value.Clone();
+        }
+
+        segment.ExtensionData = extensionData;
+        return segment;
+    }
+
+    private static void WriteMarkdownData(Utf8JsonWriter writer, string content, Dictionary<string, JsonElement>? extensionData)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("content", content);
+        if (extensionData is not null)
+        {
+            foreach (KeyValuePair<string, JsonElement> property in extensionData)
+            {
+                if (property.Key == "content")
+                {
+                    continue;
+                }
+
+                writer.WritePropertyName(property.Key);
+                property.Value.WriteTo(writer);
+            }
         }
 
         writer.WriteEndObject();
@@ -663,6 +748,7 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
             "market_face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMarketFaceIncomingSegment),
             "light_app" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingLightAppSegment),
             "xml" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyXmlIncomingSegment),
+            "markdown" => ReadMarkdownSegment(data),
             _ => new MilkyIncomingTextSegment { Text = $"[unsupported Milky segment: {type}]" },
         };
     }
@@ -714,11 +800,57 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
             case MilkyXmlIncomingSegment segment:
                 JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyXmlIncomingSegment);
                 break;
+            case MilkyIncomingMarkdownSegment segment:
+                WriteMarkdownData(writer, segment.Content, segment.ExtensionData);
+                break;
             case MilkyUnknownIncomingSegment segment:
                 segment.Data.WriteTo(writer);
                 break;
             default:
                 throw new JsonException($"Unknown incoming segment type: {value.GetType().Name}");
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static MilkyIncomingMarkdownSegment ReadMarkdownSegment(JsonElement data)
+    {
+        MilkyIncomingMarkdownSegment segment = new()
+        {
+            Content = data.TryGetProperty("content", out JsonElement content) ? content.GetString() ?? string.Empty : string.Empty,
+        };
+        Dictionary<string, JsonElement>? extensionData = null;
+        foreach (JsonProperty property in data.EnumerateObject())
+        {
+            if (property.NameEquals("content"))
+            {
+                continue;
+            }
+
+            extensionData ??= [];
+            extensionData[property.Name] = property.Value.Clone();
+        }
+
+        segment.ExtensionData = extensionData;
+        return segment;
+    }
+
+    private static void WriteMarkdownData(Utf8JsonWriter writer, string content, Dictionary<string, JsonElement>? extensionData)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("content", content);
+        if (extensionData is not null)
+        {
+            foreach (KeyValuePair<string, JsonElement> property in extensionData)
+            {
+                if (property.Key == "content")
+                {
+                    continue;
+                }
+
+                writer.WritePropertyName(property.Key);
+                property.Value.WriteTo(writer);
+            }
         }
 
         writer.WriteEndObject();
