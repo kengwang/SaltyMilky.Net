@@ -85,6 +85,15 @@ await session.RunReconnectingSseEventLoopAsync(cancellationToken: cancellationTo
 await session.RunReconnectingWebSocketEventLoopAsync(cancellationToken: cancellationToken);
 ```
 
+The reconnecting loops also rebuild the event connection after an idle timeout, which helps recover from half-open long-running SSE or WebSocket connections. The default idle timeout is two minutes; pass `idleTimeout` when your deployment needs a shorter or longer watchdog:
+
+```csharp
+await session.RunReconnectingSseEventLoopAsync(
+    reconnectDelay: TimeSpan.FromSeconds(3),
+    idleTimeout: TimeSpan.FromMinutes(2),
+    cancellationToken: cancellationToken);
+```
+
 For WebHook integrations, validate the incoming `Authorization` header and parse the request body:
 
 ```csharp

@@ -193,7 +193,7 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(events.Length).IsEqualTo(0);
     }
 
-    [Test]
+    [Test, NotInParallel]
     public async Task RunWebhookListenerAsync_ValidRequest_DispatchesEvent()
     {
         string prefix = $"http://127.0.0.1:{Random.Shared.Next(20000, 50000)}/milky-webhook/";
@@ -204,13 +204,15 @@ public sealed class MilkyNativeAotCompatibilityTests
         Task listenerTask = MilkyCommunication.RunWebhookListenerAsync(prefix, pipeline, "secret", cts.Token);
 
         using HttpClient client = new();
-        using HttpRequestMessage request = new(HttpMethod.Post, prefix)
+        using HttpResponseMessage response = await SendWithListenerStartupRetryAsync(client, () =>
         {
-            Content = new StringContent(MessageReceiveJson, Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "secret");
-
-        using HttpResponseMessage response = await client.SendAsync(request, cts.Token);
+            HttpRequestMessage request = new(HttpMethod.Post, prefix)
+            {
+                Content = new StringContent(MessageReceiveJson, Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "secret");
+            return request;
+        }, cts.Token);
         await cts.CancelAsync();
         await listenerTask;
 
@@ -218,7 +220,7 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(plugin.ReceivedMessages).IsEqualTo(1);
     }
 
-    [Test]
+    [Test, NotInParallel]
     public async Task RunWebhookListenerAsync_InvalidBearerToken_ReturnsUnauthorized()
     {
         string prefix = $"http://127.0.0.1:{Random.Shared.Next(20000, 50000)}/milky-webhook/";
@@ -227,13 +229,15 @@ public sealed class MilkyNativeAotCompatibilityTests
         Task listenerTask = MilkyCommunication.RunWebhookListenerAsync(prefix, pipeline, "secret", cts.Token);
 
         using HttpClient client = new();
-        using HttpRequestMessage request = new(HttpMethod.Post, prefix)
+        using HttpResponseMessage response = await SendWithListenerStartupRetryAsync(client, () =>
         {
-            Content = new StringContent(MessageReceiveJson, Encoding.UTF8, "application/json"),
-        };
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrong");
-
-        using HttpResponseMessage response = await client.SendAsync(request, cts.Token);
+            HttpRequestMessage request = new(HttpMethod.Post, prefix)
+            {
+                Content = new StringContent(MessageReceiveJson, Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "wrong");
+            return request;
+        }, cts.Token);
         await cts.CancelAsync();
         await listenerTask;
 
@@ -473,6 +477,23 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(handler.Authorization).IsEqualTo("Bearer secret");
     }
 
+    [Test]
+    public async Task ReadSseEventsWithReconnectAsync_IdleStream_ReconnectsAndReceivesEvent()
+    {
+        string sseText = string.Join('\n', MessageReceiveJson.Replace("\r\n", "\n").Split('\n').Select(line => $"data: {line}")) + "\n\n";
+        IdleThenEventHandler handler = new(sseText);
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+
+        MilkyEvent[] events = await CollectAtMostAsync(
+            MilkyCommunication.ReadSseEventsWithReconnectAsync(client, TimeSpan.Zero, TimeSpan.FromMilliseconds(50)),
+            count: 1,
+            timeout: TimeSpan.FromSeconds(5));
+
+        await Assert.That(events.Length).IsEqualTo(1);
+        await Assert.That(events[0].Data).IsTypeOf<MilkyMessageReceiveEventData>();
+        await Assert.That(handler.RequestCount).IsEqualTo(2);
+    }
+
     private sealed class CaptureHandler(string responseText, string mediaType = "application/json") : HttpMessageHandler
     {
         public string? RequestPath { get; private set; }
@@ -493,12 +514,148 @@ public sealed class MilkyNativeAotCompatibilityTests
         }
     }
 
+    private static async Task<HttpResponseMessage> SendWithListenerStartupRetryAsync(HttpClient client, Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            HttpRequestMessage request = requestFactory();
+            try
+            {
+                return await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            }
+            catch (HttpRequestException) when (attempt < 20)
+            {
+                request.Dispose();
+                await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private sealed class IdleThenEventHandler(string responseText) : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            HttpContent content;
+            if (RequestCount == 1)
+            {
+                content = new StreamContent(new IdleStream());
+                content.Headers.ContentType = new("text/event-stream");
+            }
+            else
+            {
+                content = new StringContent(responseText, Encoding.UTF8, "text/event-stream");
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = content,
+            });
+        }
+    }
+
+    private sealed class IdleStream : Stream
+    {
+        private readonly CancellationTokenSource _disposed = new();
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => 0;
+
+        public override long Position
+        {
+            get => 0;
+            set { }
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            _disposed.Token.WaitHandle.WaitOne();
+            return 0;
+        }
+
+        public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposed.Token);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (_disposed.IsCancellationRequested)
+            {
+                return 0;
+            }
+
+            return 0;
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposed.Token);
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (_disposed.IsCancellationRequested)
+            {
+                return 0;
+            }
+
+            return 0;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _disposed.Cancel();
+                _disposed.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => 0;
+
+        public override void SetLength(long value)
+        {
+        }
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     private static async Task<MilkyEvent[]> CollectAsync(IAsyncEnumerable<MilkyEvent> events)
     {
         List<MilkyEvent> result = [];
         await foreach (MilkyEvent milkyEvent in events)
         {
             result.Add(milkyEvent);
+        }
+
+        return result.ToArray();
+    }
+
+    private static async Task<MilkyEvent[]> CollectAtMostAsync(IAsyncEnumerable<MilkyEvent> events, int count, TimeSpan timeout)
+    {
+        using CancellationTokenSource cts = new(timeout);
+        List<MilkyEvent> result = [];
+        await foreach (MilkyEvent milkyEvent in events.WithCancellation(cts.Token))
+        {
+            result.Add(milkyEvent);
+            if (result.Count >= count)
+            {
+                break;
+            }
         }
 
         return result.ToArray();
