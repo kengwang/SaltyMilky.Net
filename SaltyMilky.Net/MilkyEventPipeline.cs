@@ -1,5 +1,22 @@
 namespace SaltyMilky.Net;
 
+/// <summary>Represents middleware in the Milky event pipeline.</summary>
+/// <param name="milkyEvent">The event to process.</param>
+/// <param name="next">The next middleware in the pipeline.</param>
+/// <param name="cancellationToken">The event dispatch cancellation token.</param>
+/// <returns>An asynchronous task.</returns>
+public delegate Task MilkyEventPipelineMiddleware(MilkyEvent milkyEvent, Func<Task> next, CancellationToken cancellationToken);
+
+/// <summary>Base middleware for processing Milky event contexts.</summary>
+public abstract class MilkyEventMiddleware
+{
+    /// <summary>Processes an event context.</summary>
+    /// <param name="context">The strongly typed event context.</param>
+    /// <param name="next">The next middleware in the pipeline.</param>
+    /// <returns>An asynchronous task.</returns>
+    public abstract Task ExecuteAsync(MilkyEventContext context, Func<Task> next);
+}
+
 /// <summary>
 /// Represents a Milky session that can process incoming events.
 /// </summary>
@@ -16,7 +33,7 @@ public interface IMilkyEventSession
 /// </summary>
 public sealed class MilkyEventPipeline
 {
-    private readonly List<Func<MilkyEvent, Func<Task>, Task>> _middlewares = [];
+    private readonly List<MiddlewareRegistration> _middlewares = [];
 
     /// <summary>
     /// Adds middleware to the pipeline.
@@ -26,7 +43,17 @@ public sealed class MilkyEventPipeline
     public MilkyEventPipeline Use(Func<MilkyEvent, Func<Task>, Task> middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);
-        _middlewares.Add(middleware);
+        _middlewares.Add(new(middleware, (milkyEvent, next, _) => middleware(milkyEvent, next)));
+        return this;
+    }
+
+    /// <summary>Adds cancellation-aware middleware to the pipeline.</summary>
+    /// <param name="middleware">The event middleware.</param>
+    /// <returns>The current pipeline.</returns>
+    public MilkyEventPipeline Use(MilkyEventPipelineMiddleware middleware)
+    {
+        ArgumentNullException.ThrowIfNull(middleware);
+        _middlewares.Add(new(middleware, middleware));
         return this;
     }
 
@@ -38,7 +65,17 @@ public sealed class MilkyEventPipeline
     public MilkyEventPipeline Remove(Func<MilkyEvent, Func<Task>, Task> middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);
-        _middlewares.Remove(middleware);
+        _middlewares.RemoveAll(registration => Equals(registration.Key, middleware));
+        return this;
+    }
+
+    /// <summary>Removes cancellation-aware middleware from the pipeline.</summary>
+    /// <param name="middleware">The event middleware.</param>
+    /// <returns>The current pipeline.</returns>
+    public MilkyEventPipeline Remove(MilkyEventPipelineMiddleware middleware)
+    {
+        ArgumentNullException.ThrowIfNull(middleware);
+        _middlewares.RemoveAll(registration => Equals(registration.Key, middleware));
         return this;
     }
 
@@ -70,8 +107,10 @@ public sealed class MilkyEventPipeline
             return EmptyAsync;
         }
 
-        return () => _middlewares[index](milkyEvent, ExecuteAt(milkyEvent, index + 1, cancellationToken));
+        return () => _middlewares[index].Middleware(milkyEvent, ExecuteAt(milkyEvent, index + 1, cancellationToken), cancellationToken);
     }
+
+    private sealed record MiddlewareRegistration(Delegate Key, MilkyEventPipelineMiddleware Middleware);
 }
 
 /// <summary>
@@ -118,6 +157,133 @@ public class MilkyEventPlugin
 
         await next().ConfigureAwait(false);
     }
+
+    /// <summary>Executes this plugin with the action session that owns the event source.</summary>
+    /// <param name="session">The action session associated with the event source.</param>
+    /// <param name="milkyEvent">The event to process.</param>
+    /// <param name="next">The next middleware.</param>
+    /// <param name="cancellationToken">The event dispatch cancellation token.</param>
+    /// <returns>An asynchronous task.</returns>
+    public async Task Execute(
+        IMilkyActionSession session,
+        MilkyEvent milkyEvent,
+        Func<Task> next,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(milkyEvent);
+        ArgumentNullException.ThrowIfNull(next);
+
+        await Execute(milkyEvent, static () => Task.CompletedTask).ConfigureAwait(false);
+
+        MilkyEventContext context = MilkyEventContextFactory.Create(session, milkyEvent, cancellationToken);
+        OnEvent(context);
+        await OnEventAsync(context).ConfigureAwait(false);
+        await DispatchContextAsync(session, milkyEvent, cancellationToken).ConfigureAwait(false);
+
+        await next().ConfigureAwait(false);
+    }
+
+    /// <summary>Called for every event with its owning action session.</summary>
+    protected virtual void OnEvent(MilkyEventContext context) { }
+    /// <summary>Called asynchronously for every event with its owning action session.</summary>
+    protected virtual Task OnEventAsync(MilkyEventContext context) => Task.CompletedTask;
+    /// <summary>Called for bot offline events.</summary>
+    protected virtual void OnBotOffline(MilkyBotOfflineContext context) { }
+    /// <summary>Called asynchronously for bot offline events.</summary>
+    protected virtual Task OnBotOfflineAsync(MilkyBotOfflineContext context) => Task.CompletedTask;
+    /// <summary>Called for incoming group messages.</summary>
+    protected virtual void OnGroupMessageReceived(MilkyGroupMessageContext context) { }
+    /// <summary>Called asynchronously for incoming group messages.</summary>
+    protected virtual Task OnGroupMessageReceivedAsync(MilkyGroupMessageContext context) => Task.CompletedTask;
+    /// <summary>Called for incoming private messages.</summary>
+    protected virtual void OnPrivateMessageReceived(MilkyPrivateMessageContext context) { }
+    /// <summary>Called asynchronously for incoming private messages.</summary>
+    protected virtual Task OnPrivateMessageReceivedAsync(MilkyPrivateMessageContext context) => Task.CompletedTask;
+    /// <summary>Called for group join and invited-join requests.</summary>
+    protected virtual void OnGroupRequest(MilkyGroupRequestContext context) { }
+    /// <summary>Called asynchronously for group join and invited-join requests.</summary>
+    protected virtual Task OnGroupRequestAsync(MilkyGroupRequestContext context) => Task.CompletedTask;
+    /// <summary>Called for recalled group messages.</summary>
+    protected virtual void OnGroupMessageRecalled(MilkyGroupMessageRecallContext context) { }
+    /// <summary>Called asynchronously for recalled group messages.</summary>
+    protected virtual Task OnGroupMessageRecalledAsync(MilkyGroupMessageRecallContext context) => Task.CompletedTask;
+    /// <summary>Called for recalled private messages.</summary>
+    protected virtual void OnPrivateMessageRecalled(MilkyPrivateMessageRecallContext context) { }
+    /// <summary>Called asynchronously for recalled private messages.</summary>
+    protected virtual Task OnPrivateMessageRecalledAsync(MilkyPrivateMessageRecallContext context) => Task.CompletedTask;
+    /// <summary>Called for peer pin changes.</summary>
+    protected virtual void OnPeerPinChanged(MilkyPeerPinChangeContext context) { }
+    /// <summary>Called asynchronously for peer pin changes.</summary>
+    protected virtual Task OnPeerPinChangedAsync(MilkyPeerPinChangeContext context) => Task.CompletedTask;
+    /// <summary>Called for friend requests.</summary>
+    protected virtual void OnFriendRequest(MilkyFriendRequestContext context) { }
+    /// <summary>Called asynchronously for friend requests.</summary>
+    protected virtual Task OnFriendRequestAsync(MilkyFriendRequestContext context) => Task.CompletedTask;
+    /// <summary>Called for group join requests.</summary>
+    protected virtual void OnGroupJoinRequest(MilkyGroupJoinRequestContext context) { }
+    /// <summary>Called asynchronously for group join requests.</summary>
+    protected virtual Task OnGroupJoinRequestAsync(MilkyGroupJoinRequestContext context) => Task.CompletedTask;
+    /// <summary>Called for invited group join requests.</summary>
+    protected virtual void OnGroupInvitedJoinRequest(MilkyGroupInvitedJoinRequestContext context) { }
+    /// <summary>Called asynchronously for invited group join requests.</summary>
+    protected virtual Task OnGroupInvitedJoinRequestAsync(MilkyGroupInvitedJoinRequestContext context) => Task.CompletedTask;
+    /// <summary>Called for group invitations.</summary>
+    protected virtual void OnGroupInvitation(MilkyGroupInvitationContext context) { }
+    /// <summary>Called asynchronously for group invitations.</summary>
+    protected virtual Task OnGroupInvitationAsync(MilkyGroupInvitationContext context) => Task.CompletedTask;
+    /// <summary>Called for friend nudges.</summary>
+    protected virtual void OnFriendNudge(MilkyFriendNudgeContext context) { }
+    /// <summary>Called asynchronously for friend nudges.</summary>
+    protected virtual Task OnFriendNudgeAsync(MilkyFriendNudgeContext context) => Task.CompletedTask;
+    /// <summary>Called for friend file uploads.</summary>
+    protected virtual void OnFriendFileUpload(MilkyFriendFileUploadContext context) { }
+    /// <summary>Called asynchronously for friend file uploads.</summary>
+    protected virtual Task OnFriendFileUploadAsync(MilkyFriendFileUploadContext context) => Task.CompletedTask;
+    /// <summary>Called for group administrator changes.</summary>
+    protected virtual void OnGroupAdminChanged(MilkyGroupAdminChangeContext context) { }
+    /// <summary>Called asynchronously for group administrator changes.</summary>
+    protected virtual Task OnGroupAdminChangedAsync(MilkyGroupAdminChangeContext context) => Task.CompletedTask;
+    /// <summary>Called for group essence message changes.</summary>
+    protected virtual void OnGroupEssenceMessageChanged(MilkyGroupEssenceMessageChangeContext context) { }
+    /// <summary>Called asynchronously for group essence message changes.</summary>
+    protected virtual Task OnGroupEssenceMessageChangedAsync(MilkyGroupEssenceMessageChangeContext context) => Task.CompletedTask;
+    /// <summary>Called for group member increases.</summary>
+    protected virtual void OnGroupMemberIncreased(MilkyGroupMemberIncreaseContext context) { }
+    /// <summary>Called asynchronously for group member increases.</summary>
+    protected virtual Task OnGroupMemberIncreasedAsync(MilkyGroupMemberIncreaseContext context) => Task.CompletedTask;
+    /// <summary>Called for group member decreases.</summary>
+    protected virtual void OnGroupMemberDecreased(MilkyGroupMemberDecreaseContext context) { }
+    /// <summary>Called asynchronously for group member decreases.</summary>
+    protected virtual Task OnGroupMemberDecreasedAsync(MilkyGroupMemberDecreaseContext context) => Task.CompletedTask;
+    /// <summary>Called for group name changes.</summary>
+    protected virtual void OnGroupNameChanged(MilkyGroupNameChangeContext context) { }
+    /// <summary>Called asynchronously for group name changes.</summary>
+    protected virtual Task OnGroupNameChangedAsync(MilkyGroupNameChangeContext context) => Task.CompletedTask;
+    /// <summary>Called for group message reactions.</summary>
+    protected virtual void OnGroupMessageReaction(MilkyGroupMessageReactionContext context) { }
+    /// <summary>Called asynchronously for group message reactions.</summary>
+    protected virtual Task OnGroupMessageReactionAsync(MilkyGroupMessageReactionContext context) => Task.CompletedTask;
+    /// <summary>Called for group member mute changes.</summary>
+    protected virtual void OnGroupMute(MilkyGroupMuteContext context) { }
+    /// <summary>Called asynchronously for group member mute changes.</summary>
+    protected virtual Task OnGroupMuteAsync(MilkyGroupMuteContext context) => Task.CompletedTask;
+    /// <summary>Called for group whole-mute changes.</summary>
+    protected virtual void OnGroupWholeMute(MilkyGroupWholeMuteContext context) { }
+    /// <summary>Called asynchronously for group whole-mute changes.</summary>
+    protected virtual Task OnGroupWholeMuteAsync(MilkyGroupWholeMuteContext context) => Task.CompletedTask;
+    /// <summary>Called for group nudges.</summary>
+    protected virtual void OnGroupNudge(MilkyGroupNudgeContext context) { }
+    /// <summary>Called asynchronously for group nudges.</summary>
+    protected virtual Task OnGroupNudgeAsync(MilkyGroupNudgeContext context) => Task.CompletedTask;
+    /// <summary>Called for group file uploads.</summary>
+    protected virtual void OnGroupFileUpload(MilkyGroupFileUploadContext context) { }
+    /// <summary>Called asynchronously for group file uploads.</summary>
+    protected virtual Task OnGroupFileUploadAsync(MilkyGroupFileUploadContext context) => Task.CompletedTask;
+    /// <summary>Called for unknown future events.</summary>
+    protected virtual void OnUnknownEvent(MilkyUnknownEventContext context) { }
+    /// <summary>Called asynchronously for unknown future events.</summary>
+    protected virtual Task OnUnknownEventAsync(MilkyUnknownEventContext context) => Task.CompletedTask;
 
     /// <summary>Called for every event before type-specific callbacks.</summary>
     public virtual void OnEvent(MilkyEvent milkyEvent) { }
@@ -213,6 +379,178 @@ public class MilkyEventPlugin
     /// <summary>Called asynchronously for group file uploads.</summary>
     public virtual Task OnGroupFileUploadAsync(MilkyCommonEventData data, MilkyEvent milkyEvent) => Task.CompletedTask;
 
+    private async Task DispatchContextAsync(IMilkyActionSession session, MilkyEvent milkyEvent, CancellationToken cancellationToken)
+    {
+        switch (milkyEvent.Data)
+        {
+            case MilkyBotOfflineEventData data:
+            {
+                MilkyBotOfflineContext context = new(session, milkyEvent, data, cancellationToken);
+                OnBotOffline(context);
+                await OnBotOfflineAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyMessageReceiveEventData data when data.Message.MessageScene == "group":
+            {
+                MilkyGroupMessageContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMessageReceived(context);
+                await OnGroupMessageReceivedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyMessageReceiveEventData data when data.Message.MessageScene == "friend":
+            {
+                MilkyPrivateMessageContext context = new(session, milkyEvent, data, cancellationToken);
+                OnPrivateMessageReceived(context);
+                await OnPrivateMessageReceivedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyMessageRecallEventData data when data.MessageScene == "group":
+            {
+                MilkyGroupMessageRecallContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMessageRecalled(context);
+                await OnGroupMessageRecalledAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyMessageRecallEventData data when data.MessageScene == "friend":
+            {
+                MilkyPrivateMessageRecallContext context = new(session, milkyEvent, data, cancellationToken);
+                OnPrivateMessageRecalled(context);
+                await OnPrivateMessageRecalledAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyPeerPinChangeEventData data:
+            {
+                MilkyPeerPinChangeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnPeerPinChanged(context);
+                await OnPeerPinChangedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyFriendRequestEventData data:
+            {
+                MilkyFriendRequestContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendRequest(context);
+                await OnFriendRequestAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupJoinRequestEventData data:
+            {
+                MilkyGroupJoinRequestContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupRequest(context);
+                await OnGroupRequestAsync(context).ConfigureAwait(false);
+                OnGroupJoinRequest(context);
+                await OnGroupJoinRequestAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupInvitedJoinRequestEventData data:
+            {
+                MilkyGroupInvitedJoinRequestContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupRequest(context);
+                await OnGroupRequestAsync(context).ConfigureAwait(false);
+                OnGroupInvitedJoinRequest(context);
+                await OnGroupInvitedJoinRequestAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupInvitationEventData data:
+            {
+                MilkyGroupInvitationContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupInvitation(context);
+                await OnGroupInvitationAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyFriendNudgeEventData data:
+            {
+                MilkyFriendNudgeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendNudge(context);
+                await OnFriendNudgeAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyFriendFileUploadEventData data:
+            {
+                MilkyFriendFileUploadContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendFileUpload(context);
+                await OnFriendFileUploadAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupAdminChangeEventData data:
+            {
+                MilkyGroupAdminChangeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupAdminChanged(context);
+                await OnGroupAdminChangedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupEssenceMessageChangeEventData data:
+            {
+                MilkyGroupEssenceMessageChangeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupEssenceMessageChanged(context);
+                await OnGroupEssenceMessageChangedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupMemberIncreaseEventData data:
+            {
+                MilkyGroupMemberIncreaseContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMemberIncreased(context);
+                await OnGroupMemberIncreasedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupMemberDecreaseEventData data:
+            {
+                MilkyGroupMemberDecreaseContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMemberDecreased(context);
+                await OnGroupMemberDecreasedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupNameChangeEventData data:
+            {
+                MilkyGroupNameChangeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupNameChanged(context);
+                await OnGroupNameChangedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupMessageReactionEventData data:
+            {
+                MilkyGroupMessageReactionContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMessageReaction(context);
+                await OnGroupMessageReactionAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupMuteEventData data:
+            {
+                MilkyGroupMuteContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMute(context);
+                await OnGroupMuteAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupWholeMuteEventData data:
+            {
+                MilkyGroupWholeMuteContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupWholeMute(context);
+                await OnGroupWholeMuteAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupNudgeEventData data:
+            {
+                MilkyGroupNudgeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupNudge(context);
+                await OnGroupNudgeAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupFileUploadEventData data:
+            {
+                MilkyGroupFileUploadContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupFileUpload(context);
+                await OnGroupFileUploadAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyUnknownEventData data:
+            {
+                MilkyUnknownEventContext context = new(session, milkyEvent, data, cancellationToken);
+                OnUnknownEvent(context);
+                await OnUnknownEventAsync(context).ConfigureAwait(false);
+                break;
+            }
+        }
+    }
+
     private async Task DispatchCommonAsync(MilkyCommonEventData data, MilkyEvent milkyEvent)
     {
         OnCommonEvent(data, milkyEvent);
@@ -297,6 +635,25 @@ public class MilkyEventPlugin
 /// </summary>
 public static class MilkyEventSessionExtensions
 {
+    /// <summary>Adds context middleware to the event pipeline.</summary>
+    /// <param name="session">The event session, which must also support Milky actions.</param>
+    /// <param name="middleware">The context middleware.</param>
+    /// <returns>The current session.</returns>
+    /// <exception cref="InvalidOperationException">The event session does not implement <see cref="IMilkyActionSession" />.</exception>
+    public static IMilkyEventSession UseMiddleware(this IMilkyEventSession session, MilkyEventMiddleware middleware)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(middleware);
+        if (session is not IMilkyActionSession actionSession)
+        {
+            throw new InvalidOperationException("Context middleware requires an event session that also implements IMilkyActionSession.");
+        }
+
+        session.EventPipeline.Use((milkyEvent, next, cancellationToken) =>
+            middleware.ExecuteAsync(MilkyEventContextFactory.Create(actionSession, milkyEvent, cancellationToken), next));
+        return session;
+    }
+
     /// <summary>
     /// Adds plugin middleware to the event pipeline.
     /// </summary>
@@ -304,7 +661,16 @@ public static class MilkyEventSessionExtensions
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(plugin);
-        session.EventPipeline.Use(plugin.Execute);
+        if (session is IMilkyActionSession actionSession)
+        {
+            session.EventPipeline.Use((milkyEvent, next, cancellationToken) =>
+                plugin.Execute(actionSession, milkyEvent, next, cancellationToken));
+        }
+        else
+        {
+            session.EventPipeline.Use(plugin.Execute);
+        }
+
         return session;
     }
 

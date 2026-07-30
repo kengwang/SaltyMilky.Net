@@ -161,10 +161,10 @@ The SDK tracks the public Milky v1.2.2 documentation surface for API helpers, ev
 ```csharp
 public sealed class MyMilkyPlugin : MilkyEventPlugin
 {
-    public override Task OnMessageReceivedAsync(MilkyMessageReceiveEventData data, MilkyEvent milkyEvent)
+    protected override async Task OnGroupMessageReceivedAsync(MilkyGroupMessageContext context)
     {
-        Console.WriteLine(data.Message.Segments.OfType<MilkyIncomingTextSegment>().FirstOrDefault()?.Text);
-        return Task.CompletedTask;
+        Console.WriteLine($"{context.SenderId}: {context.Text}");
+        await context.ReplyAsync(MilkyMessageHelpers.Text("received"));
     }
 }
 
@@ -180,6 +180,10 @@ if (parsed is not null)
     await session.EventPipeline.ExecuteAsync(parsed);
 }
 ```
+
+Context callbacks bind each event to the `IMilkyActionSession` that received it. The SDK provides a named context for every known Milky event, including group/private messages and recalls, friend and group requests, notices, bot-offline events, and unknown future events. Request contexts expose accept/reject operations; message contexts expose reply/send operations. `MilkyEventContextFactory.Create` is available when manually dispatching parsed events.
+
+The original `(data, event)` callbacks and delegate middleware remain supported. Reusable context middleware can derive from `MilkyEventMiddleware` and register with `session.UseMiddleware(...)`. Cancellation-aware delegate middleware can use `MilkyEventPipelineMiddleware`; its token is also available through `MilkyEventContext.CancellationToken` and is forwarded by context operations.
 
 ## Scope
 

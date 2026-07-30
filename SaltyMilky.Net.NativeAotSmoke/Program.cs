@@ -43,6 +43,13 @@ await pipeline.ExecuteAsync(parsed);
 Check(plugin.ReceivedMessages == 1, "event pipeline should invoke message plugin.");
 Check(plugin.LastText == "ping", "plugin should receive typed message text.");
 
+using MilkyHttpSession session = new(new MilkyHttpSessionOptions { BaseAddress = new Uri("http://localhost/") });
+ContextCountingPlugin contextPlugin = new();
+session.UsePlugin(contextPlugin);
+await session.EventPipeline.ExecuteAsync(parsed);
+Check(contextPlugin.Context is MilkyPrivateMessageContext, "session plugin should receive the private message context.");
+Check(ReferenceEquals(contextPlugin.Context.Session, session), "event context should carry its owning session.");
+
 Console.WriteLine("NativeAOT smoke passed");
 
 static void Check(bool condition, string message)
@@ -63,6 +70,17 @@ sealed class CountingPlugin : MilkyEventPlugin
     {
         ReceivedMessages++;
         LastText = data.Message.Segments.OfType<MilkyIncomingTextSegment>().Single().Text;
+        return Task.CompletedTask;
+    }
+}
+
+sealed class ContextCountingPlugin : MilkyEventPlugin
+{
+    public MilkyEventContext Context { get; private set; } = null!;
+
+    protected override Task OnEventAsync(MilkyEventContext context)
+    {
+        Context = context;
         return Task.CompletedTask;
     }
 }
