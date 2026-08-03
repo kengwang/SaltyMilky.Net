@@ -258,8 +258,8 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
         ArgumentNullException.ThrowIfNull(action);
 
         string json = SerializeParams(action.GetParamsModel());
-        using StringContent content = new(json, Encoding.UTF8, "application/json");
-        using HttpResponseMessage response = await Client.PostAsync($"api/{action.ApiName}", content, cancellationToken).ConfigureAwait(false);
+        using StringContent content = new(json, Encoding.UTF8, MilkyConstant.Communication.JsonMediaType);
+        using HttpResponseMessage response = await Client.PostAsync($"{MilkyConstant.Api.PathPrefix}{action.ApiName}", content, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {

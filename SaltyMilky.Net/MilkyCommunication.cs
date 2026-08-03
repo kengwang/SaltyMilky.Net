@@ -16,7 +16,7 @@ public static class MilkyCommunication
     /// <summary>
     /// Gets the protocol event endpoint path.
     /// </summary>
-    public const string EventEndpointPath = "event";
+    public const string EventEndpointPath = MilkyConstant.Communication.EventEndpointPath;
 
     private static readonly TimeSpan DefaultReconnectDelay = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan DefaultEventIdleTimeout = TimeSpan.FromMinutes(2);
@@ -151,9 +151,9 @@ public static class MilkyCommunication
                 continue;
             }
 
-            if (line.StartsWith("data:", StringComparison.Ordinal))
+            if (line.StartsWith(MilkyConstant.Communication.SseDataPrefix, StringComparison.Ordinal))
             {
-                dataLines.Add(line[5..].TrimStart());
+                dataLines.Add(line[MilkyConstant.Communication.SseDataPrefix.Length..].TrimStart());
             }
         }
 
@@ -177,7 +177,7 @@ public static class MilkyCommunication
         using ClientWebSocket webSocket = new();
         if (!string.IsNullOrWhiteSpace(accessToken))
         {
-            webSocket.Options.SetRequestHeader("Authorization", $"Bearer {accessToken}");
+            webSocket.Options.SetRequestHeader(MilkyConstant.Communication.AuthorizationHeader, $"{MilkyConstant.Communication.BearerScheme} {accessToken}");
         }
 
         await webSocket.ConnectAsync(ToWebSocketUri(eventUri), cancellationToken).ConfigureAwait(false);
@@ -387,7 +387,7 @@ public static class MilkyCommunication
             return false;
         }
 
-        return string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase)
+        return string.Equals(header.Scheme, MilkyConstant.Communication.BearerScheme, StringComparison.OrdinalIgnoreCase)
             && string.Equals(header.Parameter, accessToken, StringComparison.Ordinal);
     }
 
@@ -464,13 +464,13 @@ public static class MilkyCommunication
     {
         try
         {
-            if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(context.Request.HttpMethod, MilkyConstant.Communication.PostMethod, StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
                 return;
             }
 
-            MilkyEvent? milkyEvent = await ReadWebhookEventAsync(context.Request.InputStream, context.Request.Headers["Authorization"], accessToken, cancellationToken).ConfigureAwait(false);
+            MilkyEvent? milkyEvent = await ReadWebhookEventAsync(context.Request.InputStream, context.Request.Headers[MilkyConstant.Communication.AuthorizationHeader], accessToken, cancellationToken).ConfigureAwait(false);
             if (milkyEvent is not null)
             {
                 await pipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
