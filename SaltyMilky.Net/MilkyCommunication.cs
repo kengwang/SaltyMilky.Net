@@ -401,9 +401,9 @@ public static class MilkyCommunication
         UriBuilder builder = new(eventUri);
         builder.Scheme = builder.Scheme switch
         {
-            "http" => "ws",
-            "https" => "wss",
-            "ws" or "wss" => builder.Scheme,
+            MilkyConstant.CommunicationScheme.Http => MilkyConstant.CommunicationScheme.Ws,
+            MilkyConstant.CommunicationScheme.Https => MilkyConstant.CommunicationScheme.Wss,
+            MilkyConstant.CommunicationScheme.Ws or MilkyConstant.CommunicationScheme.Wss => builder.Scheme,
             _ => throw new ArgumentException("Event URI must use http, https, ws, or wss.", nameof(eventUri)),
         };
 

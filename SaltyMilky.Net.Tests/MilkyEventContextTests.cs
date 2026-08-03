@@ -14,10 +14,10 @@ public sealed class MilkyEventContextTests
         (MilkyEventData Data, Type ContextType)[] cases =
         [
             (new MilkyBotOfflineEventData("network"), typeof(MilkyBotOfflineContext)),
-            (MessageData("group"), typeof(MilkyGroupMessageContext)),
-            (MessageData("friend"), typeof(MilkyPrivateMessageContext)),
-            (RecallData("group"), typeof(MilkyGroupMessageRecallContext)),
-            (RecallData("friend"), typeof(MilkyPrivateMessageRecallContext)),
+            (MessageData(MilkyConstant.MessageScene.Group), typeof(MilkyGroupMessageContext)),
+            (MessageData(MilkyConstant.MessageScene.Friend), typeof(MilkyPrivateMessageContext)),
+            (RecallData(MilkyConstant.MessageScene.Group), typeof(MilkyGroupMessageRecallContext)),
+            (RecallData(MilkyConstant.MessageScene.Friend), typeof(MilkyPrivateMessageRecallContext)),
             (new MilkyPeerPinChangeEventData(), typeof(MilkyPeerPinChangeContext)),
             (new MilkyFriendRequestEventData(), typeof(MilkyFriendRequestContext)),
             (new MilkyGroupJoinRequestEventData(), typeof(MilkyGroupJoinRequestContext)),
@@ -64,7 +64,7 @@ public sealed class MilkyEventContextTests
             SelfId = 10000,
             Data = new MilkyMessageReceiveEventData(new MilkyIncomingMessage
             {
-                MessageScene = "group",
+                MessageScene = MilkyConstant.MessageScene.Group,
                 PeerId = 12345,
                 SenderId = 67890,
                 Segments = [new MilkyIncomingTextSegment { Text = "ping" }],

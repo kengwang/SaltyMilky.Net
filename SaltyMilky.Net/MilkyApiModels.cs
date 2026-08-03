@@ -39,7 +39,7 @@ public record class MilkyUserProfileResult
     public int Age { get; set; }
     /// <summary>Gets or sets sex.</summary>
     [JsonPropertyName("sex")]
-    public string Sex { get; set; } = "unknown";
+    public string Sex { get; set; } = MilkyConstant.Sex.Unknown;
     /// <summary>Gets or sets remark.</summary>
     [JsonPropertyName("remark")]
     public string Remark { get; set; } = string.Empty;

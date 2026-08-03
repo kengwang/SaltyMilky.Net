@@ -246,7 +246,7 @@ public sealed class MilkyGroupJoinRequestContext : MilkyGroupRequestContext
 {
     /// <summary>Initializes a group join request context.</summary>
     public MilkyGroupJoinRequestContext(IMilkyActionSession session, MilkyEvent milkyEvent, MilkyGroupJoinRequestEventData data, CancellationToken cancellationToken = default)
-        : base(session, milkyEvent, data, "join_request", cancellationToken) { }
+        : base(session, milkyEvent, data, MilkyConstant.GroupRequestNotificationType.JoinRequest, cancellationToken) { }
 }
 
 /// <summary>Context for an invited group join request.</summary>
@@ -254,7 +254,7 @@ public sealed class MilkyGroupInvitedJoinRequestContext : MilkyGroupRequestConte
 {
     /// <summary>Initializes an invited group join request context.</summary>
     public MilkyGroupInvitedJoinRequestContext(IMilkyActionSession session, MilkyEvent milkyEvent, MilkyGroupInvitedJoinRequestEventData data, CancellationToken cancellationToken = default)
-        : base(session, milkyEvent, data, "invited_join_request", cancellationToken) { }
+        : base(session, milkyEvent, data, MilkyConstant.GroupRequestNotificationType.InvitedJoinRequest, cancellationToken) { }
 }
 
 /// <summary>Context for a group invitation.</summary>
@@ -391,10 +391,10 @@ public static class MilkyEventContextFactory
         return milkyEvent.Data switch
         {
             MilkyBotOfflineEventData data => new MilkyBotOfflineContext(session, milkyEvent, data, cancellationToken),
-            MilkyMessageReceiveEventData data when data.Message.MessageScene == "group" => new MilkyGroupMessageContext(session, milkyEvent, data, cancellationToken),
-            MilkyMessageReceiveEventData data when data.Message.MessageScene == "friend" => new MilkyPrivateMessageContext(session, milkyEvent, data, cancellationToken),
-            MilkyMessageRecallEventData data when data.MessageScene == "group" => new MilkyGroupMessageRecallContext(session, milkyEvent, data, cancellationToken),
-            MilkyMessageRecallEventData data when data.MessageScene == "friend" => new MilkyPrivateMessageRecallContext(session, milkyEvent, data, cancellationToken),
+            MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Group => new MilkyGroupMessageContext(session, milkyEvent, data, cancellationToken),
+            MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Friend => new MilkyPrivateMessageContext(session, milkyEvent, data, cancellationToken),
+            MilkyMessageRecallEventData data when data.MessageScene == MilkyConstant.MessageScene.Group => new MilkyGroupMessageRecallContext(session, milkyEvent, data, cancellationToken),
+            MilkyMessageRecallEventData data when data.MessageScene == MilkyConstant.MessageScene.Friend => new MilkyPrivateMessageRecallContext(session, milkyEvent, data, cancellationToken),
             MilkyPeerPinChangeEventData data => new MilkyPeerPinChangeContext(session, milkyEvent, data, cancellationToken),
             MilkyFriendRequestEventData data => new MilkyFriendRequestContext(session, milkyEvent, data, cancellationToken),
             MilkyGroupJoinRequestEventData data => new MilkyGroupJoinRequestContext(session, milkyEvent, data, cancellationToken),

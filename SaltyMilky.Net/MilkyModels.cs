@@ -79,7 +79,7 @@ public record class MilkyTextSegment : MilkyOutgoingSegment
 
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "text";
+    public override string Type => MilkyConstant.MessageSegmentType.Text;
 
     /// <summary>
     /// Gets or sets the text content.
@@ -100,7 +100,7 @@ public record class MilkyIncomingTextSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "text";
+    public override string Type => MilkyConstant.MessageSegmentType.Text;
 
     /// <summary>
     /// Gets or sets the text content.
@@ -116,7 +116,7 @@ public record class MilkyMentionSegment(long UserId) : MilkyOutgoingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "mention";
+    public override string Type => MilkyConstant.MessageSegmentType.Mention;
 
     /// <summary>
     /// Gets the mentioned QQ number.
@@ -132,7 +132,7 @@ public record class MilkyIncomingMentionSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "mention";
+    public override string Type => MilkyConstant.MessageSegmentType.Mention;
 
     /// <summary>
     /// Gets or sets the mentioned QQ number.
@@ -154,7 +154,7 @@ public record class MilkyMentionAllSegment : MilkyOutgoingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "mention_all";
+    public override string Type => MilkyConstant.MessageSegmentType.MentionAll;
 }
 
 /// <summary>
@@ -164,7 +164,7 @@ public record class MilkyIncomingMentionAllSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "mention_all";
+    public override string Type => MilkyConstant.MessageSegmentType.MentionAll;
 }
 
 /// <summary>
@@ -174,7 +174,7 @@ public record class MilkyFaceSegment(string FaceId, bool IsLarge = false) : Milk
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "face";
+    public override string Type => MilkyConstant.MessageSegmentType.Face;
 
     /// <summary>
     /// Gets the face ID.
@@ -196,7 +196,7 @@ public record class MilkyIncomingFaceSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "face";
+    public override string Type => MilkyConstant.MessageSegmentType.Face;
 
     /// <summary>Gets or sets the face ID.</summary>
     [JsonPropertyName("face_id")]
@@ -214,7 +214,7 @@ public record class MilkyReplySegment(long MessageSeq) : MilkyOutgoingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "reply";
+    public override string Type => MilkyConstant.MessageSegmentType.Reply;
 
     /// <summary>
     /// Gets the replied message sequence.
@@ -230,7 +230,7 @@ public record class MilkyIncomingReplySegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "reply";
+    public override string Type => MilkyConstant.MessageSegmentType.Reply;
 
     /// <summary>
     /// Gets or sets the replied message sequence.
@@ -266,11 +266,11 @@ public record class MilkyIncomingReplySegment : MilkyIncomingSegment
 /// <summary>
 /// Image segment.
 /// </summary>
-public record class MilkyImageSegment(string Uri, string SubType = "normal", string? Summary = null) : MilkyOutgoingSegment
+public record class MilkyImageSegment(string Uri, string SubType = MilkyConstant.ImageSubType.Normal, string? Summary = null) : MilkyOutgoingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "image";
+    public override string Type => MilkyConstant.MessageSegmentType.Image;
 
     /// <summary>
     /// Gets the image URI.
@@ -298,7 +298,7 @@ public record class MilkyIncomingImageSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "image";
+    public override string Type => MilkyConstant.MessageSegmentType.Image;
 
     /// <summary>Gets or sets the resource ID.</summary>
     [JsonPropertyName("resource_id")]
@@ -327,7 +327,7 @@ public record class MilkyRecordSegment(string Uri) : MilkyOutgoingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "record";
+    public override string Type => MilkyConstant.MessageSegmentType.Record;
 
     /// <summary>Gets the record URI.</summary>
     [JsonPropertyName("uri")]
@@ -341,7 +341,7 @@ public record class MilkyIncomingRecordSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "record";
+    public override string Type => MilkyConstant.MessageSegmentType.Record;
 
     /// <summary>Gets or sets the resource ID.</summary>
     [JsonPropertyName("resource_id")]
@@ -361,7 +361,7 @@ public record class MilkyVideoSegment(string Uri, string? ThumbUri = null) : Mil
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "video";
+    public override string Type => MilkyConstant.MessageSegmentType.Video;
 
     /// <summary>Gets the video URI.</summary>
     [JsonPropertyName("uri")]
@@ -378,7 +378,7 @@ public record class MilkyIncomingVideoSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "video";
+    public override string Type => MilkyConstant.MessageSegmentType.Video;
     /// <summary>Gets or sets the resource ID.</summary>
     [JsonPropertyName("resource_id")]
     public string ResourceId { get; set; } = string.Empty;
@@ -422,7 +422,7 @@ public record class MilkyForwardSegment : MilkyOutgoingSegment
 
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "forward";
+    public override string Type => MilkyConstant.MessageSegmentType.Forward;
     /// <summary>Gets forwarded messages.</summary>
     [JsonPropertyName("messages")]
     public List<MilkyOutgoingForwardedMessage> Messages { get; init; }
@@ -447,7 +447,7 @@ public record class MilkyIncomingForwardSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "forward";
+    public override string Type => MilkyConstant.MessageSegmentType.Forward;
     /// <summary>Gets or sets the forward ID.</summary>
     [JsonPropertyName("forward_id")]
     public string ForwardId { get; set; } = string.Empty;
@@ -469,7 +469,7 @@ public record class MilkyLightAppSegment(string JsonPayload) : MilkyOutgoingSegm
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "light_app";
+    public override string Type => MilkyConstant.MessageSegmentType.LightApp;
     /// <summary>Gets the JSON payload.</summary>
     [JsonPropertyName("json_payload")]
     public string JsonPayload { get; init; } = JsonPayload;
@@ -491,7 +491,7 @@ public record class MilkyMarkdownSegment : MilkyOutgoingSegment
 
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "markdown";
+    public override string Type => MilkyConstant.MessageSegmentType.Markdown;
     /// <summary>Gets the Markdown content.</summary>
     [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
@@ -507,7 +507,7 @@ public record class MilkyIncomingLightAppSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "light_app";
+    public override string Type => MilkyConstant.MessageSegmentType.LightApp;
     /// <summary>Gets or sets app name.</summary>
     [JsonPropertyName("app_name")]
     public string? AppName { get; set; }
@@ -523,7 +523,7 @@ public record class MilkyIncomingMarkdownSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "markdown";
+    public override string Type => MilkyConstant.MessageSegmentType.Markdown;
     /// <summary>Gets or sets the Markdown content.</summary>
     [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
@@ -539,7 +539,7 @@ public record class MilkyFileIncomingSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "file";
+    public override string Type => MilkyConstant.MessageSegmentType.File;
     /// <summary>Gets or sets file ID.</summary>
     [JsonPropertyName("file_id")]
     public string FileId { get; set; } = string.Empty;
@@ -561,7 +561,7 @@ public record class MilkyMarketFaceIncomingSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "market_face";
+    public override string Type => MilkyConstant.MessageSegmentType.MarketFace;
     /// <summary>Gets or sets the package ID.</summary>
     [JsonPropertyName("emoji_package_id")]
     public int EmojiPackageId { get; set; }
@@ -586,7 +586,7 @@ public record class MilkyXmlIncomingSegment : MilkyIncomingSegment
 {
     /// <inheritdoc />
     [JsonIgnore]
-    public override string Type => "xml";
+    public override string Type => MilkyConstant.MessageSegmentType.Xml;
     /// <summary>Gets or sets service ID.</summary>
     [JsonPropertyName("service_id")]
     public int ServiceId { get; set; }
@@ -618,17 +618,17 @@ public sealed class MilkyOutgoingSegmentJsonConverter : JsonConverter<MilkyOutgo
         JsonElement data = document.RootElement.TryGetProperty("data", out JsonElement nestedData) ? nestedData : document.RootElement;
         return type switch
         {
-            "text" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyTextSegment),
-            "mention" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMentionSegment),
-            "mention_all" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMentionAllSegment),
-            "face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyFaceSegment),
-            "reply" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyReplySegment),
-            "image" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyImageSegment),
-            "record" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyRecordSegment),
-            "video" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyVideoSegment),
-            "forward" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyForwardSegment),
-            "light_app" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLightAppSegment),
-            "markdown" => ReadMarkdownSegment(data),
+            MilkyConstant.MessageSegmentType.Text => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyTextSegment),
+            MilkyConstant.MessageSegmentType.Mention => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMentionSegment),
+            MilkyConstant.MessageSegmentType.MentionAll => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMentionAllSegment),
+            MilkyConstant.MessageSegmentType.Face => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyFaceSegment),
+            MilkyConstant.MessageSegmentType.Reply => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyReplySegment),
+            MilkyConstant.MessageSegmentType.Image => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyImageSegment),
+            MilkyConstant.MessageSegmentType.Record => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyRecordSegment),
+            MilkyConstant.MessageSegmentType.Video => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyVideoSegment),
+            MilkyConstant.MessageSegmentType.Forward => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyForwardSegment),
+            MilkyConstant.MessageSegmentType.LightApp => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLightAppSegment),
+            MilkyConstant.MessageSegmentType.Markdown => ReadMarkdownSegment(data),
             _ => throw new JsonException($"Unknown outgoing segment type: {type}"),
         };
     }
@@ -735,20 +735,20 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
         JsonElement data = document.RootElement.TryGetProperty("data", out JsonElement nestedData) ? nestedData : document.RootElement;
         return type switch
         {
-            "text" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingTextSegment),
-            "mention" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingMentionSegment),
-            "mention_all" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingMentionAllSegment),
-            "face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingFaceSegment),
-            "reply" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingReplySegment),
-            "image" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingImageSegment),
-            "record" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingRecordSegment),
-            "video" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingVideoSegment),
-            "file" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyFileIncomingSegment),
-            "forward" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingForwardSegment),
-            "market_face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMarketFaceIncomingSegment),
-            "light_app" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingLightAppSegment),
-            "xml" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyXmlIncomingSegment),
-            "markdown" => ReadMarkdownSegment(data),
+            MilkyConstant.MessageSegmentType.Text => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingTextSegment),
+            MilkyConstant.MessageSegmentType.Mention => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingMentionSegment),
+            MilkyConstant.MessageSegmentType.MentionAll => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingMentionAllSegment),
+            MilkyConstant.MessageSegmentType.Face => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingFaceSegment),
+            MilkyConstant.MessageSegmentType.Reply => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingReplySegment),
+            MilkyConstant.MessageSegmentType.Image => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingImageSegment),
+            MilkyConstant.MessageSegmentType.Record => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingRecordSegment),
+            MilkyConstant.MessageSegmentType.Video => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingVideoSegment),
+            MilkyConstant.MessageSegmentType.File => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyFileIncomingSegment),
+            MilkyConstant.MessageSegmentType.Forward => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingForwardSegment),
+            MilkyConstant.MessageSegmentType.MarketFace => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMarketFaceIncomingSegment),
+            MilkyConstant.MessageSegmentType.LightApp => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingLightAppSegment),
+            MilkyConstant.MessageSegmentType.Xml => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyXmlIncomingSegment),
+            MilkyConstant.MessageSegmentType.Markdown => ReadMarkdownSegment(data),
             _ => new MilkyIncomingTextSegment { Text = $"[unsupported Milky segment: {type}]" },
         };
     }
@@ -878,7 +878,7 @@ public record class MilkyFriendEntity
     public string Nickname { get; set; } = string.Empty;
     /// <summary>Gets or sets sex.</summary>
     [JsonPropertyName("sex")]
-    public string Sex { get; set; } = "unknown";
+    public string Sex { get; set; } = MilkyConstant.Sex.Unknown;
     /// <summary>Gets or sets QID.</summary>
     [JsonPropertyName("qid")]
     public string Qid { get; set; } = string.Empty;
@@ -933,7 +933,7 @@ public record class MilkyGroupMemberEntity
     public string Nickname { get; set; } = string.Empty;
     /// <summary>Gets or sets sex.</summary>
     [JsonPropertyName("sex")]
-    public string Sex { get; set; } = "unknown";
+    public string Sex { get; set; } = MilkyConstant.Sex.Unknown;
     /// <summary>Gets or sets group QQ number.</summary>
     [JsonPropertyName("group_id")]
     public long GroupId { get; set; }
@@ -948,7 +948,7 @@ public record class MilkyGroupMemberEntity
     public int Level { get; set; }
     /// <summary>Gets or sets role.</summary>
     [JsonPropertyName("role")]
-    public string Role { get; set; } = "member";
+    public string Role { get; set; } = MilkyConstant.GroupMemberRole.Member;
     /// <summary>Gets or sets join time.</summary>
     [JsonPropertyName("join_time")]
     public long JoinTime { get; set; }
@@ -1119,35 +1119,35 @@ public record class MilkyGroupNotification
 public record class MilkyJoinRequestGroupNotification : MilkyGroupNotification
 {
     /// <summary>Initializes a group join request notification.</summary>
-    public MilkyJoinRequestGroupNotification() => Type = "join_request";
+    public MilkyJoinRequestGroupNotification() => Type = MilkyConstant.GroupRequestNotificationType.JoinRequest;
 }
 
 /// <summary>Group administrator change notification.</summary>
 public record class MilkyAdminChangeGroupNotification : MilkyGroupNotification
 {
     /// <summary>Initializes a group administrator change notification.</summary>
-    public MilkyAdminChangeGroupNotification() => Type = "admin_change";
+    public MilkyAdminChangeGroupNotification() => Type = MilkyConstant.GroupNotificationType.AdminChange;
 }
 
 /// <summary>Group member kick notification.</summary>
 public record class MilkyKickGroupNotification : MilkyGroupNotification
 {
     /// <summary>Initializes a group member kick notification.</summary>
-    public MilkyKickGroupNotification() => Type = "kick";
+    public MilkyKickGroupNotification() => Type = MilkyConstant.GroupNotificationType.Kick;
 }
 
 /// <summary>Group member quit notification.</summary>
 public record class MilkyQuitGroupNotification : MilkyGroupNotification
 {
     /// <summary>Initializes a group member quit notification.</summary>
-    public MilkyQuitGroupNotification() => Type = "quit";
+    public MilkyQuitGroupNotification() => Type = MilkyConstant.GroupNotificationType.Quit;
 }
 
 /// <summary>Group invited-join request notification.</summary>
 public record class MilkyInvitedJoinRequestGroupNotification : MilkyGroupNotification
 {
     /// <summary>Initializes a group invited-join request notification.</summary>
-    public MilkyInvitedJoinRequestGroupNotification() => Type = "invited_join_request";
+    public MilkyInvitedJoinRequestGroupNotification() => Type = MilkyConstant.GroupRequestNotificationType.InvitedJoinRequest;
 }
 
 /// <summary>Unknown group notification preserved as raw JSON.</summary>
@@ -1176,11 +1176,11 @@ public sealed class MilkyGroupNotificationJsonConverter : JsonConverter<MilkyGro
 
         return type switch
         {
-            "join_request" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyJoinRequestGroupNotification),
-            "admin_change" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyAdminChangeGroupNotification),
-            "kick" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyKickGroupNotification),
-            "quit" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyQuitGroupNotification),
-            "invited_join_request" => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyInvitedJoinRequestGroupNotification),
+            MilkyConstant.GroupRequestNotificationType.JoinRequest => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyJoinRequestGroupNotification),
+            MilkyConstant.GroupNotificationType.AdminChange => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyAdminChangeGroupNotification),
+            MilkyConstant.GroupNotificationType.Kick => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyKickGroupNotification),
+            MilkyConstant.GroupNotificationType.Quit => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyQuitGroupNotification),
+            MilkyConstant.GroupRequestNotificationType.InvitedJoinRequest => root.Deserialize(MilkyJsonSerializerContext.Default.MilkyInvitedJoinRequestGroupNotification),
             _ => new MilkyUnknownGroupNotification(type, root.Clone()),
         };
     }

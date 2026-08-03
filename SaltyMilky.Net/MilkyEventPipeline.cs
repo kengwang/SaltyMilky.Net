@@ -390,28 +390,28 @@ public class MilkyEventPlugin
                 await OnBotOfflineAsync(context).ConfigureAwait(false);
                 break;
             }
-            case MilkyMessageReceiveEventData data when data.Message.MessageScene == "group":
+            case MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Group:
             {
                 MilkyGroupMessageContext context = new(session, milkyEvent, data, cancellationToken);
                 OnGroupMessageReceived(context);
                 await OnGroupMessageReceivedAsync(context).ConfigureAwait(false);
                 break;
             }
-            case MilkyMessageReceiveEventData data when data.Message.MessageScene == "friend":
+            case MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Friend:
             {
                 MilkyPrivateMessageContext context = new(session, milkyEvent, data, cancellationToken);
                 OnPrivateMessageReceived(context);
                 await OnPrivateMessageReceivedAsync(context).ConfigureAwait(false);
                 break;
             }
-            case MilkyMessageRecallEventData data when data.MessageScene == "group":
+            case MilkyMessageRecallEventData data when data.MessageScene == MilkyConstant.MessageScene.Group:
             {
                 MilkyGroupMessageRecallContext context = new(session, milkyEvent, data, cancellationToken);
                 OnGroupMessageRecalled(context);
                 await OnGroupMessageRecalledAsync(context).ConfigureAwait(false);
                 break;
             }
-            case MilkyMessageRecallEventData data when data.MessageScene == "friend":
+            case MilkyMessageRecallEventData data when data.MessageScene == MilkyConstant.MessageScene.Friend:
             {
                 MilkyPrivateMessageRecallContext context = new(session, milkyEvent, data, cancellationToken);
                 OnPrivateMessageRecalled(context);
@@ -558,71 +558,71 @@ public class MilkyEventPlugin
 
         switch (data.EventType)
         {
-            case "peer_pin_change":
+            case MilkyConstant.EventType.PeerPinChange:
                 OnPeerPinChanged(data, milkyEvent);
                 await OnPeerPinChangedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "friend_request":
+            case MilkyConstant.EventType.FriendRequest:
                 OnFriendRequest(data, milkyEvent);
                 await OnFriendRequestAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_join_request":
+            case MilkyConstant.EventType.GroupJoinRequest:
                 OnGroupJoinRequest(data, milkyEvent);
                 await OnGroupJoinRequestAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_invited_join_request":
+            case MilkyConstant.EventType.GroupInvitedJoinRequest:
                 OnGroupInvitedJoinRequest(data, milkyEvent);
                 await OnGroupInvitedJoinRequestAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_invitation":
+            case MilkyConstant.EventType.GroupInvitation:
                 OnGroupInvitation(data, milkyEvent);
                 await OnGroupInvitationAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "friend_nudge":
+            case MilkyConstant.EventType.FriendNudge:
                 OnFriendNudge(data, milkyEvent);
                 await OnFriendNudgeAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "friend_file_upload":
+            case MilkyConstant.EventType.FriendFileUpload:
                 OnFriendFileUpload(data, milkyEvent);
                 await OnFriendFileUploadAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_admin_change":
+            case MilkyConstant.EventType.GroupAdminChange:
                 OnGroupAdminChanged(data, milkyEvent);
                 await OnGroupAdminChangedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_essence_message_change":
+            case MilkyConstant.EventType.GroupEssenceMessageChange:
                 OnGroupEssenceMessageChanged(data, milkyEvent);
                 await OnGroupEssenceMessageChangedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_member_increase":
+            case MilkyConstant.EventType.GroupMemberIncrease:
                 OnGroupMemberIncreased(data, milkyEvent);
                 await OnGroupMemberIncreasedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_member_decrease":
+            case MilkyConstant.EventType.GroupMemberDecrease:
                 OnGroupMemberDecreased(data, milkyEvent);
                 await OnGroupMemberDecreasedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_name_change":
+            case MilkyConstant.EventType.GroupNameChange:
                 OnGroupNameChanged(data, milkyEvent);
                 await OnGroupNameChangedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_message_reaction":
+            case MilkyConstant.EventType.GroupMessageReaction:
                 OnGroupMessageReaction(data, milkyEvent);
                 await OnGroupMessageReactionAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_mute":
+            case MilkyConstant.EventType.GroupMute:
                 OnGroupMute(data, milkyEvent);
                 await OnGroupMuteAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_whole_mute":
+            case MilkyConstant.EventType.GroupWholeMute:
                 OnGroupWholeMute(data, milkyEvent);
                 await OnGroupWholeMuteAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_nudge":
+            case MilkyConstant.EventType.GroupNudge:
                 OnGroupNudge(data, milkyEvent);
                 await OnGroupNudgeAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
-            case "group_file_upload":
+            case MilkyConstant.EventType.GroupFileUpload:
                 OnGroupFileUpload(data, milkyEvent);
                 await OnGroupFileUploadAsync(data, milkyEvent).ConfigureAwait(false);
                 break;

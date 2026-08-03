@@ -265,7 +265,7 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
         {
             return new MilkyActionResult<TData>
             {
-                Status = "failed",
+                Status = MilkyConstant.ResponseStatus.Failed,
                 RetCode = -(int)response.StatusCode,
                 Message = response.ReasonPhrase,
             };
@@ -358,7 +358,7 @@ public class MilkyActionResult
     /// <summary>
     /// Gets whether this action succeeded.
     /// </summary>
-    public bool IsSuccess => Status == "ok" && RetCode == 0;
+    public bool IsSuccess => Status == MilkyConstant.ResponseStatus.Ok && RetCode == 0;
 }
 
 /// <summary>

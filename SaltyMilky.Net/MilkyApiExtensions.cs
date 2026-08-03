@@ -153,7 +153,7 @@ public static partial class MilkyActionSessionExtensions
     /// <summary>Quits a group.</summary>
     public static Task<MilkyActionResult?> QuitGroupAsync(this IMilkyActionSession session, long groupId, CancellationToken cancellationToken = default) => session.InvokeApiAsync("quit_group", Params(P("group_id", groupId)), cancellationToken);
     /// <summary>Sends group message reaction.</summary>
-    public static Task<MilkyActionResult?> SendGroupMessageReactionAsync(this IMilkyActionSession session, long groupId, long messageSeq, string reaction, string reactionType = "face", bool isAdd = true, CancellationToken cancellationToken = default) => session.InvokeApiAsync("send_group_message_reaction", Params(P("group_id", groupId), P("message_seq", messageSeq), P("reaction", reaction), P("reaction_type", reactionType), P("is_add", isAdd)), cancellationToken);
+    public static Task<MilkyActionResult?> SendGroupMessageReactionAsync(this IMilkyActionSession session, long groupId, long messageSeq, string reaction, string reactionType = MilkyConstant.ReactionType.Face, bool isAdd = true, CancellationToken cancellationToken = default) => session.InvokeApiAsync("send_group_message_reaction", Params(P("group_id", groupId), P("message_seq", messageSeq), P("reaction", reaction), P("reaction_type", reactionType), P("is_add", isAdd)), cancellationToken);
     /// <summary>Sends group nudge.</summary>
     public static Task<MilkyActionResult?> SendGroupNudgeAsync(this IMilkyActionSession session, long groupId, long userId, CancellationToken cancellationToken = default) => session.InvokeApiAsync("send_group_nudge", Params(P("group_id", groupId), P("user_id", userId)), cancellationToken);
     /// <summary>Gets group notifications.</summary>

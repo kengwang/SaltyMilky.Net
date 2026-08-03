@@ -37,7 +37,7 @@ public sealed class MilkyNativeAotCompatibilityTests
         MilkyEvent? parsed = MilkyEventParser.ParseJson(MessageReceiveJson);
 
         await Assert.That(parsed).IsNotNull();
-        await Assert.That(parsed!.EventType).IsEqualTo("message_receive");
+        await Assert.That(parsed!.EventType).IsEqualTo(MilkyConstant.EventType.MessageReceive);
         await Assert.That(parsed.SelfId).IsEqualTo(10000);
         await Assert.That(parsed.Data).IsTypeOf<MilkyMessageReceiveEventData>();
 
@@ -147,7 +147,7 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(parsed).IsNotNull();
         await Assert.That(parsed!.Data).IsTypeOf<MilkyGroupMemberIncreaseEventData>();
         MilkyCommonEventData data = (MilkyCommonEventData)parsed.Data;
-        await Assert.That(data.EventType).IsEqualTo("group_member_increase");
+        await Assert.That(data.EventType).IsEqualTo(MilkyConstant.EventType.GroupMemberIncrease);
         await Assert.That(data.InvitorId).IsEqualTo(111222333);
     }
 
@@ -176,9 +176,9 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(parsed).IsNotNull();
         await Assert.That(parsed!.Data).IsTypeOf<MilkyGroupMessageReactionEventData>();
         MilkyCommonEventData data = (MilkyCommonEventData)parsed.Data;
-        await Assert.That(data.EventType).IsEqualTo("group_message_reaction");
+        await Assert.That(data.EventType).IsEqualTo(MilkyConstant.EventType.GroupMessageReaction);
         await Assert.That(data.IsAdd).IsTrue();
-        await Assert.That(data.ReactionType).IsEqualTo("face");
+        await Assert.That(data.ReactionType).IsEqualTo(MilkyConstant.ReactionType.Face);
     }
 
     [Test]
@@ -342,7 +342,7 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(((MilkyMarketFaceIncomingSegment)marketFace!).Key).IsEqualTo("k");
         await Assert.That(((MilkyIncomingLightAppSegment)lightApp!).AppName).IsEqualTo("app");
         await Assert.That(((MilkyXmlIncomingSegment)xml!).ServiceId).IsEqualTo(60);
-        await Assert.That(((MilkyIncomingImageSegment)image!).SubType).IsEqualTo("sticker");
+        await Assert.That(((MilkyIncomingImageSegment)image!).SubType).IsEqualTo(MilkyConstant.ImageSubType.Sticker);
     }
 
     [Test]
@@ -395,6 +395,9 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(result.Notifications[2]).IsTypeOf<MilkyKickGroupNotification>();
         await Assert.That(result.Notifications[3]).IsTypeOf<MilkyQuitGroupNotification>();
         await Assert.That(result.Notifications[4]).IsTypeOf<MilkyInvitedJoinRequestGroupNotification>();
+        await Assert.That(result.Notifications[0].Type).IsEqualTo(MilkyConstant.GroupRequestNotificationType.JoinRequest);
+        await Assert.That(result.Notifications[1].Type).IsEqualTo(MilkyConstant.GroupNotificationType.AdminChange);
+        await Assert.That(result.Notifications[4].Type).IsEqualTo(MilkyConstant.GroupRequestNotificationType.InvitedJoinRequest);
         await Assert.That(result.Notifications[0].InitiatorId).IsEqualTo(11);
         await Assert.That(result.Notifications[1].OperatorId).IsEqualTo(33);
         await Assert.That(result.Notifications[4].TargetUserId).IsEqualTo(88);
