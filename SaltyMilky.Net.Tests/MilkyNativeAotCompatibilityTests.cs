@@ -466,6 +466,24 @@ public sealed class MilkyNativeAotCompatibilityTests
     }
 
     [Test]
+    public async Task InvokeApiAsync_EmptyObjectResponse_ReturnsUntypedResult()
+    {
+        CaptureHandler handler = new("""{"status":"ok","retcode":0,"message":null,"data":{}}""");
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        using MilkyHttpSession session = new(new MilkyHttpSessionOptions { HttpClient = client });
+
+        MilkyActionResult? result = await session.RejectGroupRequestAsync(
+            notificationSeq: 1,
+            notificationType: MilkyConstant.GroupRequestNotificationType.JoinRequest,
+            groupId: 2,
+            reason: "reason");
+
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.IsSuccess).IsTrue();
+        await Assert.That(handler.RequestPath).IsEqualTo("/api/reject_group_request");
+    }
+
+    [Test]
     public async Task ReadSseEventsAsync_HttpSession_UsesEventEndpointAndBearerToken()
     {
         string sseText = string.Join('\n', MessageReceiveJson.Replace("\r\n", "\n").Split('\n').Select(line => $"data: {line}")) + "\n\n";

@@ -279,7 +279,11 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
         }
 
         TData? data = default;
-        if (raw.Data.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null)
+        if (typeof(TData) == typeof(MilkyEmptyObject))
+        {
+            data = (TData)(object)MilkyEmptyObject.Instance;
+        }
+        else if (raw.Data.ValueKind is not JsonValueKind.Undefined and not JsonValueKind.Null)
         {
             data = (TData?)raw.Data.Deserialize(typeof(TData), MilkyJsonSerializerContext.Default);
         }
