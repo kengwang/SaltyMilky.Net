@@ -499,6 +499,72 @@ public sealed class MilkyNativeAotCompatibilityTests
     }
 
     [Test]
+    public async Task RunSseEventLoopAsync_HandlerFailure_ContinuesWithLaterEvents()
+    {
+        CaptureHandler handler = new(SseEvents(3), "text/event-stream");
+        List<Exception> failures = [];
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        using MilkyHttpSession session = new(new MilkyHttpSessionOptions
+        {
+            HttpClient = client,
+            EventHandlerConcurrency = 1,
+            EventQueueCapacity = 3,
+            EventHandlerExceptionHandler = (exception, _) => failures.Add(exception),
+        });
+        int handled = 0;
+        session.UseEvent(_ =>
+        {
+            if (Interlocked.Increment(ref handled) == 1)
+            {
+                throw new InvalidOperationException("boom");
+            }
+        });
+
+        await session.RunSseEventLoopAsync();
+
+        await Assert.That(handled).IsEqualTo(3);
+        await Assert.That(failures.Count).IsEqualTo(1);
+        await Assert.That(failures[0]).IsTypeOf<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task RunSseEventLoopAsync_ConcurrentHandlers_RespectConfiguredLimit()
+    {
+        CaptureHandler handler = new(SseEvents(12), "text/event-stream");
+        using HttpClient client = new(handler) { BaseAddress = new Uri("http://localhost/") };
+        using MilkyHttpSession session = new(new MilkyHttpSessionOptions
+        {
+            HttpClient = client,
+            EventHandlerConcurrency = 3,
+            EventQueueCapacity = 6,
+        });
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource allWorkersStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        int active = 0;
+        int maximumActive = 0;
+        int started = 0;
+        session.UseEvent(async _ =>
+        {
+            int current = Interlocked.Increment(ref active);
+            UpdateMaximum(ref maximumActive, current);
+            if (Interlocked.Increment(ref started) == 3)
+            {
+                allWorkersStarted.TrySetResult();
+            }
+
+            await release.Task;
+            Interlocked.Decrement(ref active);
+        });
+
+        Task run = session.RunSseEventLoopAsync();
+        await allWorkersStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(Volatile.Read(ref maximumActive)).IsEqualTo(3);
+        release.SetResult();
+        await run;
+        await Assert.That(maximumActive).IsEqualTo(3);
+    }
+
+    [Test]
     public async Task ReadSseEventsWithReconnectAsync_IdleStream_ReconnectsAndReceivesEvent()
     {
         string sseText = string.Join('\n', MessageReceiveJson.Replace("\r\n", "\n").Split('\n').Select(line => $"data: {line}")) + "\n\n";
@@ -533,6 +599,22 @@ public sealed class MilkyNativeAotCompatibilityTests
                 Content = new StringContent(responseText, Encoding.UTF8, mediaType),
             };
         }
+    }
+
+    private static string SseEvents(int count) => string.Concat(
+        Enumerable.Repeat($"data: {MessageReceiveJson.Replace("\r", string.Empty).Replace("\n", "\ndata: ")}\n\n", count));
+
+    private static void UpdateMaximum(ref int maximum, int value)
+    {
+        int observed;
+        do
+        {
+            observed = Volatile.Read(ref maximum);
+            if (observed >= value)
+            {
+                return;
+            }
+        } while (Interlocked.CompareExchange(ref maximum, value, observed) != observed);
     }
 
     private static async Task<HttpResponseMessage> SendWithListenerStartupRetryAsync(HttpClient client, Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)

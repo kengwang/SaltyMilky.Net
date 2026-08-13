@@ -157,6 +157,21 @@ public sealed class MilkyHttpSessionOptions
     /// Gets or sets an externally owned HTTP client.
     /// </summary>
     public HttpClient? HttpClient { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum number of events whose pipelines may execute concurrently.
+    /// </summary>
+    public int EventHandlerConcurrency { get; set; } = 4;
+
+    /// <summary>
+    /// Gets or sets the bounded event queue capacity. When full, event reads apply backpressure.
+    /// </summary>
+    public int EventQueueCapacity { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets a callback invoked when an event pipeline throws an unhandled exception.
+    /// </summary>
+    public Action<Exception, MilkyEvent>? EventHandlerExceptionHandler { get; set; }
 }
 
 /// <summary>
@@ -173,6 +188,8 @@ public sealed class MilkyHttpSession : IMilkyActionSession, IMilkyEventSession, 
     public MilkyHttpSession(MilkyHttpSessionOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.EventHandlerConcurrency, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(options.EventQueueCapacity, options.EventHandlerConcurrency);
 
         HttpClient client = options.HttpClient ?? new HttpClient();
         _ownsClient = options.HttpClient is null;
@@ -192,6 +209,9 @@ public sealed class MilkyHttpSession : IMilkyActionSession, IMilkyEventSession, 
         EventUri = MilkyCommunication.BuildEventUri(client.BaseAddress);
         ActionSender = new MilkyHttpActionSender(client);
         EventPipeline = new MilkyEventPipeline();
+        EventHandlerConcurrency = options.EventHandlerConcurrency;
+        EventQueueCapacity = options.EventQueueCapacity;
+        EventHandlerExceptionHandler = options.EventHandlerExceptionHandler;
     }
 
     /// <summary>
@@ -214,6 +234,15 @@ public sealed class MilkyHttpSession : IMilkyActionSession, IMilkyEventSession, 
 
     /// <inheritdoc />
     public MilkyEventPipeline EventPipeline { get; }
+
+    /// <summary>Gets the maximum number of concurrently executing event pipelines.</summary>
+    public int EventHandlerConcurrency { get; }
+
+    /// <summary>Gets the bounded pending-event queue capacity.</summary>
+    public int EventQueueCapacity { get; }
+
+    /// <summary>Gets the callback invoked for an unhandled event pipeline exception.</summary>
+    public Action<Exception, MilkyEvent>? EventHandlerExceptionHandler { get; }
 
     /// <summary>
     /// Releases the owned HTTP client, if any.

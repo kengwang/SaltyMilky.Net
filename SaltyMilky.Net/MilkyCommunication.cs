@@ -5,6 +5,7 @@ using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace SaltyMilky.Net;
 
@@ -558,10 +559,7 @@ public static class MilkyHttpSessionEventExtensions
     public static async Task RunSseEventLoopAsync(this MilkyHttpSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await foreach (MilkyEvent milkyEvent in session.ReadSseEventsAsync(cancellationToken).ConfigureAwait(false))
-        {
-            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
-        }
+        await RunEventLoopAsync(session, session.ReadSseEventsAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -570,10 +568,7 @@ public static class MilkyHttpSessionEventExtensions
     public static async Task RunReconnectingSseEventLoopAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await foreach (MilkyEvent milkyEvent in session.ReadSseEventsWithReconnectAsync(reconnectDelay, cancellationToken).ConfigureAwait(false))
-        {
-            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
-        }
+        await RunEventLoopAsync(session, session.ReadSseEventsWithReconnectAsync(reconnectDelay, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -582,10 +577,7 @@ public static class MilkyHttpSessionEventExtensions
     public static async Task RunReconnectingSseEventLoopAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay, TimeSpan? idleTimeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await foreach (MilkyEvent milkyEvent in session.ReadSseEventsWithReconnectAsync(reconnectDelay, idleTimeout, cancellationToken).ConfigureAwait(false))
-        {
-            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
-        }
+        await RunEventLoopAsync(session, session.ReadSseEventsWithReconnectAsync(reconnectDelay, idleTimeout, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -594,10 +586,7 @@ public static class MilkyHttpSessionEventExtensions
     public static async Task RunWebSocketEventLoopAsync(this MilkyHttpSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await foreach (MilkyEvent milkyEvent in session.ReadWebSocketEventsAsync(cancellationToken).ConfigureAwait(false))
-        {
-            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
-        }
+        await RunEventLoopAsync(session, session.ReadWebSocketEventsAsync(cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -606,10 +595,7 @@ public static class MilkyHttpSessionEventExtensions
     public static async Task RunReconnectingWebSocketEventLoopAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await foreach (MilkyEvent milkyEvent in session.ReadWebSocketEventsWithReconnectAsync(reconnectDelay, cancellationToken).ConfigureAwait(false))
-        {
-            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
-        }
+        await RunEventLoopAsync(session, session.ReadWebSocketEventsWithReconnectAsync(reconnectDelay, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -618,9 +604,71 @@ public static class MilkyHttpSessionEventExtensions
     public static async Task RunReconnectingWebSocketEventLoopAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay, TimeSpan? idleTimeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        await foreach (MilkyEvent milkyEvent in session.ReadWebSocketEventsWithReconnectAsync(reconnectDelay, idleTimeout, cancellationToken).ConfigureAwait(false))
+        await RunEventLoopAsync(session, session.ReadWebSocketEventsWithReconnectAsync(reconnectDelay, idleTimeout, cancellationToken), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task RunEventLoopAsync(
+        MilkyHttpSession session,
+        IAsyncEnumerable<MilkyEvent> events,
+        CancellationToken cancellationToken)
+    {
+        Channel<MilkyEvent> channel = Channel.CreateBounded<MilkyEvent>(new BoundedChannelOptions(session.EventQueueCapacity)
         {
-            await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = true,
+            SingleReader = session.EventHandlerConcurrency == 1
+        });
+
+        Task[] workers = Enumerable.Range(0, session.EventHandlerConcurrency)
+            .Select(_ => ConsumeEventsAsync(session, channel.Reader, cancellationToken))
+            .ToArray();
+
+        try
+        {
+            await foreach (MilkyEvent milkyEvent in events.WithCancellation(cancellationToken).ConfigureAwait(false))
+            {
+                await channel.Writer.WriteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            channel.Writer.TryComplete();
+            await Task.WhenAll(workers).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task ConsumeEventsAsync(
+        MilkyHttpSession session,
+        ChannelReader<MilkyEvent> reader,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (MilkyEvent milkyEvent in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
+            {
+                try
+                {
+                    await session.EventPipeline.ExecuteAsync(milkyEvent, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        session.EventHandlerExceptionHandler?.Invoke(ex, milkyEvent);
+                    }
+                    catch
+                    {
+                        // Exception reporting must not terminate event processing.
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 }

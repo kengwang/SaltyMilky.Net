@@ -19,7 +19,11 @@ using System.Text.Json.Nodes;
 using MilkyHttpSession session = new(new MilkyHttpSessionOptions
 {
     BaseAddress = new Uri("http://127.0.0.1:3000/"),
-    AccessToken = "optional-token"
+    AccessToken = "optional-token",
+    EventHandlerConcurrency = 4,
+    EventQueueCapacity = 100,
+    EventHandlerExceptionHandler = (exception, milkyEvent) =>
+        Console.Error.WriteLine($"Failed to handle {milkyEvent.EventType}: {exception}")
 });
 
 MilkyActionResult<MilkyLoginInfoResult>? login = await session.GetLoginInfoAsync();
@@ -28,6 +32,8 @@ if (login?.IsSuccess == true)
     Console.WriteLine($"Logged in as {login.Data?.Nickname} ({login.Data?.Uin})");
 }
 ```
+
+The built-in event loops process events concurrently with a bounded queue. An unhandled exception from one event is reported through `EventHandlerExceptionHandler` and does not stop the transport loop or later events. Queue backpressure prevents an event burst from creating an unbounded number of tasks.
 
 ## Send Messages
 
