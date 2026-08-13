@@ -91,7 +91,7 @@ await session.RunReconnectingSseEventLoopAsync(cancellationToken: cancellationTo
 await session.RunReconnectingWebSocketEventLoopAsync(cancellationToken: cancellationToken);
 ```
 
-The reconnecting loops also rebuild the event connection after an idle timeout, which helps recover from half-open long-running SSE or WebSocket connections. The default idle timeout is two minutes; pass `idleTimeout` when your deployment needs a shorter or longer watchdog:
+By default, reconnecting loops keep an idle event connection open and reconnect only after a transport failure. If a deployment explicitly needs an idle watchdog, pass `idleTimeout`:
 
 ```csharp
 await session.RunReconnectingSseEventLoopAsync(

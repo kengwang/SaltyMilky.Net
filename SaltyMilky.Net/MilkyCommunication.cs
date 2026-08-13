@@ -20,7 +20,7 @@ public static class MilkyCommunication
     public const string EventEndpointPath = MilkyConstant.Communication.EventEndpointPath;
 
     private static readonly TimeSpan DefaultReconnectDelay = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan DefaultEventIdleTimeout = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan DefaultEventIdleTimeout = Timeout.InfiniteTimeSpan;
 
     /// <summary>
     /// Reads events from the protocol-side SSE /event endpoint.

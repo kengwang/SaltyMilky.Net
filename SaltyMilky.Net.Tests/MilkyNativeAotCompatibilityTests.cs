@@ -193,6 +193,16 @@ public sealed class MilkyNativeAotCompatibilityTests
         await Assert.That(events.Length).IsEqualTo(0);
     }
 
+    [Test]
+    public async Task ReconnectingEventStreams_DefaultIdleTimeout_IsInfinite()
+    {
+        TimeSpan defaultIdleTimeout = (TimeSpan)typeof(MilkyCommunication)
+            .GetField("DefaultEventIdleTimeout", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .GetValue(null)!;
+
+        await Assert.That(defaultIdleTimeout).IsEqualTo(Timeout.InfiniteTimeSpan);
+    }
+
     [Test, NotInParallel]
     public async Task RunWebhookListenerAsync_ValidRequest_DispatchesEvent()
     {
