@@ -200,11 +200,43 @@ public record class MilkyIncomingFaceSegment : MilkyIncomingSegment
 
     /// <summary>Gets or sets the face ID.</summary>
     [JsonPropertyName("face_id")]
+    [JsonConverter(typeof(MilkyIncomingFaceIdJsonConverter))]
     public string FaceId { get; set; } = string.Empty;
 
     /// <summary>Gets or sets whether the face is large.</summary>
     [JsonPropertyName("is_large")]
     public bool IsLarge { get; set; }
+}
+
+/// <summary>Accepts numeric face IDs from legacy implementations while writing protocol strings.</summary>
+public sealed class MilkyIncomingFaceIdJsonConverter : JsonConverter<string>
+{
+    /// <inheritdoc />
+    public override bool HandleNull => true;
+
+    /// <inheritdoc />
+    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            return reader.GetString()!;
+        }
+
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            using JsonDocument document = JsonDocument.ParseValue(ref reader);
+            string value = document.RootElement.GetRawText();
+            if (value.All(char.IsAsciiDigit))
+            {
+                return value;
+            }
+        }
+
+        throw new JsonException("face_id must be a string or a non-negative integer.");
+    }
+
+    /// <inheritdoc />
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options) => writer.WriteStringValue(value);
 }
 
 /// <summary>

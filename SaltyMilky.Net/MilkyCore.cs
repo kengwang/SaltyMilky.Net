@@ -172,6 +172,9 @@ public sealed class MilkyHttpSessionOptions
     /// Gets or sets a callback invoked when an event pipeline throws an unhandled exception.
     /// </summary>
     public Action<Exception, MilkyEvent>? EventHandlerExceptionHandler { get; set; }
+
+    /// <summary>Gets or sets the callback for malformed events skipped by SSE and WebSocket readers.</summary>
+    public Action<Exception>? EventParseExceptionHandler { get; set; }
 }
 
 /// <summary>
@@ -212,6 +215,7 @@ public sealed class MilkyHttpSession : IMilkyActionSession, IMilkyEventSession, 
         EventHandlerConcurrency = options.EventHandlerConcurrency;
         EventQueueCapacity = options.EventQueueCapacity;
         EventHandlerExceptionHandler = options.EventHandlerExceptionHandler;
+        EventParseExceptionHandler = options.EventParseExceptionHandler;
     }
 
     /// <summary>
@@ -243,6 +247,9 @@ public sealed class MilkyHttpSession : IMilkyActionSession, IMilkyEventSession, 
 
     /// <summary>Gets the callback invoked for an unhandled event pipeline exception.</summary>
     public Action<Exception, MilkyEvent>? EventHandlerExceptionHandler { get; }
+
+    /// <summary>Gets the callback for malformed events skipped by SSE and WebSocket readers.</summary>
+    public Action<Exception>? EventParseExceptionHandler { get; }
 
     /// <summary>
     /// Releases the owned HTTP client, if any.

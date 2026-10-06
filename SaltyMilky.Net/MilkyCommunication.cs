@@ -25,9 +25,15 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads events from the protocol-side SSE /event endpoint.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(
         HttpClient client,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadSseEventsAsync(client, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(
+        HttpClient client,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
         ArgumentNullException.ThrowIfNull(client);
 
@@ -36,7 +42,7 @@ public static class MilkyCommunication
         response.EnsureSuccessStatusCode();
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        await foreach (MilkyEvent milkyEvent in ReadSseEventsAsync(stream, cancellationToken).ConfigureAwait(false))
+        await foreach (MilkyEvent milkyEvent in ReadSseEventsAsync(stream, cancellationToken, eventParseExceptionHandler).ConfigureAwait(false))
         {
             yield return milkyEvent;
         }
@@ -45,12 +51,19 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads SSE events and reconnects after transport failures until cancellation is requested.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
         HttpClient client,
         TimeSpan? reconnectDelay = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadSseEventsWithReconnectAsync(client, reconnectDelay, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
+        HttpClient client,
+        TimeSpan? reconnectDelay,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
-        await foreach (MilkyEvent milkyEvent in ReadSseEventsWithReconnectAsync(client, reconnectDelay, DefaultEventIdleTimeout, cancellationToken).ConfigureAwait(false))
+        await foreach (MilkyEvent milkyEvent in ReadSseEventsWithReconnectAsync(client, reconnectDelay, DefaultEventIdleTimeout, cancellationToken, eventParseExceptionHandler).ConfigureAwait(false))
         {
             yield return milkyEvent;
         }
@@ -59,11 +72,19 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads SSE events and reconnects after transport failures or idle timeouts until cancellation is requested.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
         HttpClient client,
         TimeSpan? reconnectDelay,
         TimeSpan? idleTimeout,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadSseEventsWithReconnectAsync(client, reconnectDelay, idleTimeout, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(
+        HttpClient client,
+        TimeSpan? reconnectDelay,
+        TimeSpan? idleTimeout,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
         ArgumentNullException.ThrowIfNull(client);
         TimeSpan delay = reconnectDelay ?? DefaultReconnectDelay;
@@ -72,7 +93,7 @@ public static class MilkyCommunication
         while (!cancellationToken.IsCancellationRequested)
         {
             using CancellationTokenSource attemptCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            IAsyncEnumerator<MilkyEvent> enumerator = ReadSseEventsAsync(client, attemptCts.Token).GetAsyncEnumerator(attemptCts.Token);
+            IAsyncEnumerator<MilkyEvent> enumerator = ReadSseEventsAsync(client, attemptCts.Token, eventParseExceptionHandler).GetAsyncEnumerator(attemptCts.Token);
             try
             {
                 while (!cancellationToken.IsCancellationRequested)
@@ -130,9 +151,15 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads events from an SSE stream.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(
         Stream stream,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadSseEventsAsync(stream, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(
+        Stream stream,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
@@ -142,7 +169,7 @@ public static class MilkyCommunication
         {
             if (line.Length == 0)
             {
-                MilkyEvent? milkyEvent = ParseSseDataLines(dataLines);
+                MilkyEvent? milkyEvent = ParseSseDataLines(dataLines, eventParseExceptionHandler);
                 if (milkyEvent is not null)
                 {
                     yield return milkyEvent;
@@ -158,7 +185,7 @@ public static class MilkyCommunication
             }
         }
 
-        MilkyEvent? finalEvent = ParseSseDataLines(dataLines);
+        MilkyEvent? finalEvent = ParseSseDataLines(dataLines, eventParseExceptionHandler);
         if (finalEvent is not null)
         {
             yield return finalEvent;
@@ -168,10 +195,17 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads events from a protocol-side WebSocket /event endpoint.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(
         Uri eventUri,
         string? accessToken = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadWebSocketEventsAsync(eventUri, accessToken, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(
+        Uri eventUri,
+        string? accessToken,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
         ArgumentNullException.ThrowIfNull(eventUri);
 
@@ -182,7 +216,7 @@ public static class MilkyCommunication
         }
 
         await webSocket.ConnectAsync(ToWebSocketUri(eventUri), cancellationToken).ConfigureAwait(false);
-        await foreach (MilkyEvent milkyEvent in ReadWebSocketEventsAsync(webSocket, cancellationToken).ConfigureAwait(false))
+        await foreach (MilkyEvent milkyEvent in ReadWebSocketEventsAsync(webSocket, cancellationToken, eventParseExceptionHandler).ConfigureAwait(false))
         {
             yield return milkyEvent;
         }
@@ -191,13 +225,21 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads WebSocket events and reconnects after transport failures until cancellation is requested.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
         Uri eventUri,
         string? accessToken = null,
         TimeSpan? reconnectDelay = null,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadWebSocketEventsWithReconnectAsync(eventUri, accessToken, reconnectDelay, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
+        Uri eventUri,
+        string? accessToken,
+        TimeSpan? reconnectDelay,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
-        await foreach (MilkyEvent milkyEvent in ReadWebSocketEventsWithReconnectAsync(eventUri, accessToken, reconnectDelay, DefaultEventIdleTimeout, cancellationToken).ConfigureAwait(false))
+        await foreach (MilkyEvent milkyEvent in ReadWebSocketEventsWithReconnectAsync(eventUri, accessToken, reconnectDelay, DefaultEventIdleTimeout, cancellationToken, eventParseExceptionHandler).ConfigureAwait(false))
         {
             yield return milkyEvent;
         }
@@ -206,12 +248,21 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads WebSocket events and reconnects after transport failures or idle timeouts until cancellation is requested.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
         Uri eventUri,
         string? accessToken,
         TimeSpan? reconnectDelay,
         TimeSpan? idleTimeout,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadWebSocketEventsWithReconnectAsync(eventUri, accessToken, reconnectDelay, idleTimeout, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(
+        Uri eventUri,
+        string? accessToken,
+        TimeSpan? reconnectDelay,
+        TimeSpan? idleTimeout,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
         ArgumentNullException.ThrowIfNull(eventUri);
         TimeSpan delay = reconnectDelay ?? DefaultReconnectDelay;
@@ -220,7 +271,7 @@ public static class MilkyCommunication
         while (!cancellationToken.IsCancellationRequested)
         {
             using CancellationTokenSource attemptCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            IAsyncEnumerator<MilkyEvent> enumerator = ReadWebSocketEventsAsync(eventUri, accessToken, attemptCts.Token).GetAsyncEnumerator(attemptCts.Token);
+            IAsyncEnumerator<MilkyEvent> enumerator = ReadWebSocketEventsAsync(eventUri, accessToken, attemptCts.Token, eventParseExceptionHandler).GetAsyncEnumerator(attemptCts.Token);
             try
             {
                 while (!cancellationToken.IsCancellationRequested)
@@ -278,9 +329,15 @@ public static class MilkyCommunication
     /// <summary>
     /// Reads events from an already connected WebSocket.
     /// </summary>
-    public static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(
+    public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(
         WebSocket webSocket,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
+        => ReadWebSocketEventsAsync(webSocket, cancellationToken, null);
+
+    internal static async IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(
+        WebSocket webSocket,
+        [EnumeratorCancellation] CancellationToken cancellationToken,
+        Action<Exception>? eventParseExceptionHandler)
     {
         ArgumentNullException.ThrowIfNull(webSocket);
 
@@ -308,7 +365,7 @@ public static class MilkyCommunication
                     continue;
                 }
 
-                MilkyEvent? milkyEvent = JsonSerializer.Deserialize(message.ToArray(), MilkyJsonSerializerContext.Default.MilkyEvent);
+                MilkyEvent? milkyEvent = ParseEvent(message.ToArray(), eventParseExceptionHandler);
                 if (milkyEvent is not null)
                 {
                     yield return milkyEvent;
@@ -421,7 +478,7 @@ public static class MilkyCommunication
         return new Uri(baseAddress, EventEndpointPath);
     }
 
-    private static MilkyEvent? ParseSseDataLines(List<string> dataLines)
+    private static MilkyEvent? ParseSseDataLines(List<string> dataLines, Action<Exception>? eventParseExceptionHandler)
     {
         if (dataLines.Count == 0)
         {
@@ -429,7 +486,27 @@ public static class MilkyCommunication
         }
 
         string json = string.Join('\n', dataLines);
-        return MilkyEventParser.ParseJson(json);
+        return ParseEvent(Encoding.UTF8.GetBytes(json), eventParseExceptionHandler);
+    }
+
+    private static MilkyEvent? ParseEvent(byte[] json, Action<Exception>? exceptionHandler)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, MilkyJsonSerializerContext.Default.MilkyEvent);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or OverflowException)
+        {
+            try
+            {
+                exceptionHandler?.Invoke(ex);
+            }
+            catch
+            {
+                // A diagnostics callback must not terminate the event stream.
+            }
+            return null;
+        }
     }
 
     private static async Task<bool> MoveNextWithIdleTimeoutAsync(
@@ -505,7 +582,7 @@ public static class MilkyHttpSessionEventExtensions
     public static IAsyncEnumerable<MilkyEvent> ReadSseEventsAsync(this MilkyHttpSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return MilkyCommunication.ReadSseEventsAsync(session.Client, cancellationToken);
+        return MilkyCommunication.ReadSseEventsAsync(session.Client, cancellationToken, session.EventParseExceptionHandler);
     }
 
     /// <summary>
@@ -514,7 +591,7 @@ public static class MilkyHttpSessionEventExtensions
     public static IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return MilkyCommunication.ReadSseEventsWithReconnectAsync(session.Client, reconnectDelay, cancellationToken);
+        return MilkyCommunication.ReadSseEventsWithReconnectAsync(session.Client, reconnectDelay, cancellationToken, session.EventParseExceptionHandler);
     }
 
     /// <summary>
@@ -523,7 +600,7 @@ public static class MilkyHttpSessionEventExtensions
     public static IAsyncEnumerable<MilkyEvent> ReadSseEventsWithReconnectAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay, TimeSpan? idleTimeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return MilkyCommunication.ReadSseEventsWithReconnectAsync(session.Client, reconnectDelay, idleTimeout, cancellationToken);
+        return MilkyCommunication.ReadSseEventsWithReconnectAsync(session.Client, reconnectDelay, idleTimeout, cancellationToken, session.EventParseExceptionHandler);
     }
 
     /// <summary>
@@ -532,7 +609,7 @@ public static class MilkyHttpSessionEventExtensions
     public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsAsync(this MilkyHttpSession session, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return MilkyCommunication.ReadWebSocketEventsAsync(session.EventUri, session.AccessToken, cancellationToken);
+        return MilkyCommunication.ReadWebSocketEventsAsync(session.EventUri, session.AccessToken, cancellationToken, session.EventParseExceptionHandler);
     }
 
     /// <summary>
@@ -541,7 +618,7 @@ public static class MilkyHttpSessionEventExtensions
     public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return MilkyCommunication.ReadWebSocketEventsWithReconnectAsync(session.EventUri, session.AccessToken, reconnectDelay, cancellationToken);
+        return MilkyCommunication.ReadWebSocketEventsWithReconnectAsync(session.EventUri, session.AccessToken, reconnectDelay, cancellationToken, session.EventParseExceptionHandler);
     }
 
     /// <summary>
@@ -550,7 +627,7 @@ public static class MilkyHttpSessionEventExtensions
     public static IAsyncEnumerable<MilkyEvent> ReadWebSocketEventsWithReconnectAsync(this MilkyHttpSession session, TimeSpan? reconnectDelay, TimeSpan? idleTimeout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return MilkyCommunication.ReadWebSocketEventsWithReconnectAsync(session.EventUri, session.AccessToken, reconnectDelay, idleTimeout, cancellationToken);
+        return MilkyCommunication.ReadWebSocketEventsWithReconnectAsync(session.EventUri, session.AccessToken, reconnectDelay, idleTimeout, cancellationToken, session.EventParseExceptionHandler);
     }
 
     /// <summary>
