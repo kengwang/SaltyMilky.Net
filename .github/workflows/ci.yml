@@ -31,7 +31,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Restore
         run: dotnet restore SaltyMilky.Net.slnx
@@ -40,10 +42,14 @@ jobs:
         run: dotnet build SaltyMilky.Net.slnx --configuration $env:CONFIGURATION --no-restore
 
       - name: Test
-        run: dotnet test SaltyMilky.Net.slnx --configuration $env:CONFIGURATION --no-build
+        run: dotnet run --project SaltyMilky.Net.Tests --configuration $env:CONFIGURATION --no-build
 
       - name: Native AOT smoke
-        run: dotnet publish SaltyMilky.Net.NativeAotSmoke/SaltyMilky.Net.NativeAotSmoke.csproj --configuration $env:CONFIGURATION --runtime win-x64 --no-restore
+        run: |
+          dotnet publish SaltyMilky.Net.NativeAotSmoke/SaltyMilky.Net.NativeAotSmoke.csproj --configuration $env:CONFIGURATION --runtime win-x64 --output artifacts/native-aot
+          if ($LASTEXITCODE -ne 0) { throw "Native AOT publish failed." }
+          & ./artifacts/native-aot/SaltyMilky.Net.NativeAotSmoke.exe --require-native
+          if ($LASTEXITCODE -ne 0) { throw "Native AOT smoke failed." }
 
       - name: Pack
         run: dotnet pack SaltyMilky.Net/SaltyMilky.Net.csproj --configuration $env:CONFIGURATION --no-build --output artifacts/packages
@@ -65,4 +71,5 @@ jobs:
 
           Get-ChildItem artifacts/packages/*.nupkg | ForEach-Object {
             dotnet nuget push $_.FullName --api-key $env:NUGET_APIKEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { throw "NuGet push failed." }
           }

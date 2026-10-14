@@ -61,7 +61,12 @@ public record class MilkyUserProfileResult
 }
 
 /// <summary>Peer pin result.</summary>
-public record class MilkyPeerPinsResult([property: JsonPropertyName("friends")] List<MilkyFriendEntity> Friends, [property: JsonPropertyName("groups")] List<MilkyGroupEntity> Groups);
+public record class MilkyPeerPinsResult([property: JsonPropertyName("friends")] List<MilkyFriendEntity> Friends, [property: JsonPropertyName("groups")] List<MilkyGroupEntity> Groups)
+{
+    /// <summary>Gets or sets pinned peer numbers returned by Lagrange.</summary>
+    [JsonPropertyName("peer_uins")]
+    public List<long> PeerUins { get; set; } = [];
+}
 
 /// <summary>Message sending result.</summary>
 public record class MilkySendMessageResult([property: JsonPropertyName("message_seq")] long MessageSeq, [property: JsonPropertyName("time")] long Time);
@@ -79,7 +84,12 @@ public record class MilkyResourceTempUrlResult([property: JsonPropertyName("url"
 public record class MilkyForwardedMessagesResult([property: JsonPropertyName("messages")] List<MilkyIncomingForwardedMessage> Messages);
 
 /// <summary>Group essence messages result.</summary>
-public record class MilkyGroupEssenceMessagesResult([property: JsonPropertyName("messages")] List<MilkyGroupEssenceMessage> Messages, [property: JsonPropertyName("is_end")] bool IsEnd);
+public record class MilkyGroupEssenceMessagesResult([property: JsonPropertyName("messages")] List<MilkyGroupEssenceMessage> Messages, [property: JsonPropertyName("is_end")] bool IsEnd)
+{
+    /// <summary>Gets or sets the current account's group role.</summary>
+    [JsonPropertyName("group_role")]
+    public int GroupRole { get; set; }
+}
 
 /// <summary>Group notifications result.</summary>
 public record class MilkyGroupNotificationsResult([property: JsonPropertyName("notifications")] List<MilkyGroupNotification> Notifications, [property: JsonPropertyName("next_notification_seq")] long? NextNotificationSeq);
@@ -109,11 +119,30 @@ public record class MilkyMembersResult([property: JsonPropertyName("members")] L
 /// <summary>Group member information result.</summary>
 public record class MilkyMemberResult([property: JsonPropertyName("member")] MilkyGroupMemberEntity Member);
 /// <summary>Custom face URL list result.</summary>
-public record class MilkyStringListResult([property: JsonPropertyName("urls")] List<string> Urls);
+public record class MilkyStringListResult([property: JsonPropertyName("urls")] List<string> Urls)
+{
+    /// <summary>Gets or sets the custom face identifiers returned by Lagrange.</summary>
+    [JsonPropertyName("face_ids")]
+    public List<string> FaceIds { get; set; } = [];
+}
 /// <summary>Cookie string result.</summary>
-public record class MilkyCookiesResult([property: JsonPropertyName("cookies")] string Cookies);
+[JsonConverter(typeof(MilkyCookiesResultJsonConverter))]
+public record class MilkyCookiesResult([property: JsonPropertyName("cookies")] string Cookies)
+{
+    /// <summary>Gets the individual cookies when the server returns a dictionary.</summary>
+    [JsonIgnore]
+    public IReadOnlyDictionary<string, string>? CookieValues { get; init; }
+}
 /// <summary>CSRF token result.</summary>
-public record class MilkyCsrfTokenResult([property: JsonPropertyName("csrf_token")] string CsrfToken);
+[JsonConverter(typeof(MilkyCsrfTokenResultJsonConverter))]
+public record class MilkyCsrfTokenResult([property: JsonPropertyName("csrf_token")] string CsrfToken)
+{
+    /// <summary>Gets the token using the Lagrange wire field name.</summary>
+    [JsonIgnore]
+    public string Token => CsrfToken;
+    [JsonIgnore]
+    internal bool UsesLagrangeName { get; init; }
+}
 /// <summary>Friend requests result.</summary>
 public record class MilkyFriendRequestsResult([property: JsonPropertyName("requests")] List<MilkyFriendRequest> Requests);
 /// <summary>Group announcements result.</summary>

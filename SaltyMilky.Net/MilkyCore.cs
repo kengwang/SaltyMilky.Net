@@ -34,6 +34,15 @@ public static class MilkyJson
     /// </summary>
     public static JsonTypeInfo<MilkyIncomingSegment> IncomingSegmentTypeInfo => MilkyJsonSerializerContext.Default.MilkyIncomingSegment;
 
+    /// <summary>Gets reflection-free JSON metadata for a built-in SDK wire type.</summary>
+    /// <typeparam name="T">A registered request, result, event, or message model.</typeparam>
+    /// <returns>The source-generated metadata.</returns>
+    /// <exception cref="NotSupportedException">The type is not a built-in SDK wire type.</exception>
+    public static JsonTypeInfo<T> GetTypeInfo<T>() =>
+        MilkyJsonSerializerContext.Default.GetTypeInfo(typeof(T)) is JsonTypeInfo<T> metadata
+            ? metadata
+            : throw new NotSupportedException($"No built-in Milky JSON metadata exists for {typeof(T)}.");
+
     private static JsonSerializerOptions CreateOptions()
     {
         JsonSerializerOptions options = new()
@@ -292,6 +301,7 @@ public sealed class MilkyHttpActionSender : MilkyActionSender
     public override async Task<MilkyActionResult<TData>?> InvokeActionAsync<TData>(MilkyAction action, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(action);
+        cancellationToken.ThrowIfCancellationRequested();
 
         string json = SerializeParams(action.GetParamsModel());
         using StringContent content = new(json, Encoding.UTF8, MilkyConstant.Communication.JsonMediaType);

@@ -1,6 +1,9 @@
 ﻿using System.Text.Json;
 using SaltyMilky.Net;
 
+if (args.Contains("--require-native") && System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
+    throw new InvalidOperationException("Run the published Native AOT executable for --require-native.");
+
 const string messageReceiveJson =
     """
     {
@@ -50,7 +53,10 @@ await session.EventPipeline.ExecuteAsync(parsed);
 Check(contextPlugin.Context is MilkyPrivateMessageContext, "session plugin should receive the private message context.");
 Check(ReferenceEquals(contextPlugin.Context.Session, session), "event context should carry its owning session.");
 
-Console.WriteLine("NativeAOT smoke passed");
+await new SaltyMilky.Net.Tests.LagrangeApiContractSmoke().RunAsync();
+await new SaltyMilky.Net.Tests.LagrangeMessageEventContractSmoke().RunAsync();
+await SaltyMilky.Net.Tests.LagrangeBoundaryContracts.RunAsync();
+Console.WriteLine("NativeAOT smoke passed: 175 API routes, 29 events, 59 segment contracts and boundary probes");
 
 static void Check(bool condition, string message)
 {

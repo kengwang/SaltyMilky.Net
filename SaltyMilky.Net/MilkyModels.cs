@@ -172,6 +172,13 @@ public record class MilkyIncomingMentionAllSegment : MilkyIncomingSegment
 /// </summary>
 public record class MilkyFaceSegment(string FaceId, bool IsLarge = false) : MilkyOutgoingSegment
 {
+    /// <summary>Gets or sets result_id returned by Lagrange.</summary>
+    [JsonPropertyName("result_id")]
+    public string? ResultId { get; set; }
+    /// <summary>Gets or sets raw returned by Lagrange.</summary>
+    [JsonPropertyName("raw")]
+    public string? Raw { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Face;
@@ -194,6 +201,13 @@ public record class MilkyFaceSegment(string FaceId, bool IsLarge = false) : Milk
 /// </summary>
 public record class MilkyIncomingFaceSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets result_id returned by Lagrange.</summary>
+    [JsonPropertyName("result_id")]
+    public string? ResultId { get; set; }
+    /// <summary>Gets or sets raw returned by Lagrange.</summary>
+    [JsonPropertyName("raw")]
+    public string Raw { get; set; } = string.Empty;
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Face;
@@ -328,6 +342,19 @@ public record class MilkyImageSegment(string Uri, string SubType = MilkyConstant
 /// </summary>
 public record class MilkyIncomingImageSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets flash returned by Lagrange.</summary>
+    [JsonPropertyName("flash")]
+    public bool Flash { get; set; }
+    /// <summary>Gets or sets file_md5 returned by Lagrange.</summary>
+    [JsonPropertyName("file_md5")]
+    public string? FileMd5 { get; set; }
+    /// <summary>Gets or sets file_sha1 returned by Lagrange.</summary>
+    [JsonPropertyName("file_sha1")]
+    public string? FileSha1 { get; set; }
+    /// <summary>Gets or sets file_size returned by Lagrange.</summary>
+    [JsonPropertyName("file_size")]
+    public long FileSize { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Image;
@@ -371,6 +398,16 @@ public record class MilkyRecordSegment(string Uri) : MilkyOutgoingSegment
 /// </summary>
 public record class MilkyIncomingRecordSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets file_md5 returned by Lagrange.</summary>
+    [JsonPropertyName("file_md5")]
+    public string? FileMd5 { get; set; }
+    /// <summary>Gets or sets file_sha1 returned by Lagrange.</summary>
+    [JsonPropertyName("file_sha1")]
+    public string? FileSha1 { get; set; }
+    /// <summary>Gets or sets file_size returned by Lagrange.</summary>
+    [JsonPropertyName("file_size")]
+    public long FileSize { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Record;
@@ -408,6 +445,16 @@ public record class MilkyVideoSegment(string Uri, string? ThumbUri = null) : Mil
 /// </summary>
 public record class MilkyIncomingVideoSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets file_md5 returned by Lagrange.</summary>
+    [JsonPropertyName("file_md5")]
+    public string? FileMd5 { get; set; }
+    /// <summary>Gets or sets file_sha1 returned by Lagrange.</summary>
+    [JsonPropertyName("file_sha1")]
+    public string? FileSha1 { get; set; }
+    /// <summary>Gets or sets file_size returned by Lagrange.</summary>
+    [JsonPropertyName("file_size")]
+    public long FileSize { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Video;
@@ -433,6 +480,9 @@ public record class MilkyIncomingVideoSegment : MilkyIncomingSegment
 /// </summary>
 public record class MilkyOutgoingForwardedMessage(long UserId, string SenderName, MilkyMessage Segments)
 {
+    /// <summary>Gets or sets optional message presentation metadata.</summary>
+    [JsonPropertyName("message_style"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MilkyMessageStyle? MessageStyle { get; set; }
     /// <summary>Gets the sender QQ number.</summary>
     [JsonPropertyName("user_id")]
     public long UserId { get; init; } = UserId;
@@ -449,6 +499,8 @@ public record class MilkyOutgoingForwardedMessage(long UserId, string SenderName
 /// </summary>
 public record class MilkyForwardSegment : MilkyOutgoingSegment
 {
+    /// <summary>Initializes an empty forward segment for JSON deserialization.</summary>
+    public MilkyForwardSegment() => Messages = [];
     /// <summary>Initializes a forward segment.</summary>
     public MilkyForwardSegment(IEnumerable<MilkyOutgoingForwardedMessage> messages) => Messages = messages.ToList();
 
@@ -477,6 +529,10 @@ public record class MilkyForwardSegment : MilkyOutgoingSegment
 /// </summary>
 public record class MilkyIncomingForwardSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets prompt returned by Lagrange.</summary>
+    [JsonPropertyName("prompt")]
+    public string? Prompt { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Forward;
@@ -569,6 +625,19 @@ public record class MilkyIncomingMarkdownSegment : MilkyIncomingSegment
 /// </summary>
 public record class MilkyFileIncomingSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets url returned by Lagrange.</summary>
+    [JsonPropertyName("url")]
+    public string? Url { get; set; }
+    /// <summary>Gets or sets title returned by Lagrange.</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+    /// <summary>Gets or sets preview returned by Lagrange.</summary>
+    [JsonPropertyName("preview")]
+    public string? Preview { get; set; }
+    /// <summary>Gets or sets summary returned by Lagrange.</summary>
+    [JsonPropertyName("summary")]
+    public string? Summary { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.File;
@@ -591,6 +660,13 @@ public record class MilkyFileIncomingSegment : MilkyIncomingSegment
 /// </summary>
 public record class MilkyMarketFaceIncomingSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets face_id returned by Lagrange.</summary>
+    [JsonPropertyName("face_id")]
+    public uint FaceId { get; set; }
+    /// <summary>Gets or sets name returned by Lagrange.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.MarketFace;
@@ -616,6 +692,10 @@ public record class MilkyMarketFaceIncomingSegment : MilkyIncomingSegment
 /// </summary>
 public record class MilkyXmlIncomingSegment : MilkyIncomingSegment
 {
+    /// <summary>Gets or sets xml returned by Lagrange.</summary>
+    [JsonPropertyName("xml")]
+    public string Xml { get; set; } = string.Empty;
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Xml;
@@ -645,7 +725,7 @@ public sealed class MilkyOutgoingSegmentJsonConverter : JsonConverter<MilkyOutgo
     /// <inheritdoc />
     public override MilkyOutgoingSegment? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        JsonDocument document = JsonDocument.ParseValue(ref reader);
+        using JsonDocument document = JsonDocument.ParseValue(ref reader);
         string type = document.RootElement.GetProperty("type").GetString() ?? string.Empty;
         JsonElement data = document.RootElement.TryGetProperty("data", out JsonElement nestedData) ? nestedData : document.RootElement;
         return type switch
@@ -661,6 +741,24 @@ public sealed class MilkyOutgoingSegmentJsonConverter : JsonConverter<MilkyOutgo
             MilkyConstant.MessageSegmentType.Forward => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyForwardSegment),
             MilkyConstant.MessageSegmentType.LightApp => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLightAppSegment),
             MilkyConstant.MessageSegmentType.Markdown => ReadMarkdownSegment(data),
+            "poke" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyPokeSegment),
+            "keyboard" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyKeyboardSegment),
+            "special_poke" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkySpecialPokeSegment),
+            "json" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyJsonSegment),
+            "location" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLocationSegment),
+            "music" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMusicSegment),
+            "share" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyShareSegment),
+            "contact" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyContactSegment),
+            "dice" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyDiceSegment),
+            "rps" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyRpsSegment),
+            "long_msg" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLongMsgSegment),
+            "stream" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyStreamSegment),
+            "bounce_face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyBounceFaceSegment),
+            "group_reaction" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupReactionSegment),
+            "grey_tip" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyGreyTipSegment),
+            "file" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyFileSegment),
+            "market_face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMarketFaceSegment),
+            "xml" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyXmlSegment),
             _ => throw new JsonException($"Unknown outgoing segment type: {type}"),
         };
     }
@@ -705,6 +803,60 @@ public sealed class MilkyOutgoingSegmentJsonConverter : JsonConverter<MilkyOutgo
                 break;
             case MilkyMarkdownSegment segment:
                 WriteMarkdownData(writer, segment.Content, segment.ExtensionData);
+                break;
+            case MilkyPokeSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyPokeSegment);
+                break;
+            case MilkyKeyboardSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyKeyboardSegment);
+                break;
+            case MilkySpecialPokeSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkySpecialPokeSegment);
+                break;
+            case MilkyJsonSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyJsonSegment);
+                break;
+            case MilkyLocationSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyLocationSegment);
+                break;
+            case MilkyMusicSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyMusicSegment);
+                break;
+            case MilkyShareSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyShareSegment);
+                break;
+            case MilkyContactSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyContactSegment);
+                break;
+            case MilkyDiceSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyDiceSegment);
+                break;
+            case MilkyRpsSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyRpsSegment);
+                break;
+            case MilkyLongMsgSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyLongMsgSegment);
+                break;
+            case MilkyStreamSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyStreamSegment);
+                break;
+            case MilkyBounceFaceSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyBounceFaceSegment);
+                break;
+            case MilkyGroupReactionSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyGroupReactionSegment);
+                break;
+            case MilkyGreyTipSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyGreyTipSegment);
+                break;
+            case MilkyFileSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyFileSegment);
+                break;
+            case MilkyMarketFaceSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyMarketFaceSegment);
+                break;
+            case MilkyXmlSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyXmlSegment);
                 break;
             default:
                 throw new JsonException($"Unknown outgoing segment type: {value.GetType().Name}");
@@ -762,7 +914,7 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
     /// <inheritdoc />
     public override MilkyIncomingSegment? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        JsonDocument document = JsonDocument.ParseValue(ref reader);
+        using JsonDocument document = JsonDocument.ParseValue(ref reader);
         string type = document.RootElement.GetProperty("type").GetString() ?? string.Empty;
         JsonElement data = document.RootElement.TryGetProperty("data", out JsonElement nestedData) ? nestedData : document.RootElement;
         return type switch
@@ -781,6 +933,22 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
             MilkyConstant.MessageSegmentType.LightApp => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyIncomingLightAppSegment),
             MilkyConstant.MessageSegmentType.Xml => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyXmlIncomingSegment),
             MilkyConstant.MessageSegmentType.Markdown => ReadMarkdownSegment(data),
+            "flash_file" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyFlashFileIncomingSegment),
+            "poke" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyPokeIncomingSegment),
+            "keyboard" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyKeyboardIncomingSegment),
+            "special_poke" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkySpecialPokeIncomingSegment),
+            "json" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyJsonIncomingSegment),
+            "location" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLocationIncomingSegment),
+            "music" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyMusicIncomingSegment),
+            "share" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyShareIncomingSegment),
+            "contact" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyContactIncomingSegment),
+            "dice" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyDiceIncomingSegment),
+            "rps" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyRpsIncomingSegment),
+            "long_msg" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyLongMsgIncomingSegment),
+            "stream" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyStreamIncomingSegment),
+            "bounce_face" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyBounceFaceIncomingSegment),
+            "group_reaction" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupReactionIncomingSegment),
+            "grey_tip" => data.Deserialize(MilkyJsonSerializerContext.Default.MilkyGreyTipIncomingSegment),
             _ => new MilkyIncomingTextSegment { Text = $"[unsupported Milky segment: {type}]" },
         };
     }
@@ -837,6 +1005,54 @@ public sealed class MilkyIncomingSegmentJsonConverter : JsonConverter<MilkyIncom
                 break;
             case MilkyUnknownIncomingSegment segment:
                 segment.Data.WriteTo(writer);
+                break;
+            case MilkyFlashFileIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyFlashFileIncomingSegment);
+                break;
+            case MilkyPokeIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyPokeIncomingSegment);
+                break;
+            case MilkyKeyboardIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyKeyboardIncomingSegment);
+                break;
+            case MilkySpecialPokeIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkySpecialPokeIncomingSegment);
+                break;
+            case MilkyJsonIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyJsonIncomingSegment);
+                break;
+            case MilkyLocationIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyLocationIncomingSegment);
+                break;
+            case MilkyMusicIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyMusicIncomingSegment);
+                break;
+            case MilkyShareIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyShareIncomingSegment);
+                break;
+            case MilkyContactIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyContactIncomingSegment);
+                break;
+            case MilkyDiceIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyDiceIncomingSegment);
+                break;
+            case MilkyRpsIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyRpsIncomingSegment);
+                break;
+            case MilkyLongMsgIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyLongMsgIncomingSegment);
+                break;
+            case MilkyStreamIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyStreamIncomingSegment);
+                break;
+            case MilkyBounceFaceIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyBounceFaceIncomingSegment);
+                break;
+            case MilkyGroupReactionIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyGroupReactionIncomingSegment);
+                break;
+            case MilkyGreyTipIncomingSegment segment:
+                JsonSerializer.Serialize(writer, segment, MilkyJsonSerializerContext.Default.MilkyGreyTipIncomingSegment);
                 break;
             default:
                 throw new JsonException($"Unknown incoming segment type: {value.GetType().Name}");
@@ -932,11 +1148,17 @@ public record class MilkyGroupEntity
     [JsonPropertyName("group_name")]
     public string GroupName { get; set; } = string.Empty;
     /// <summary>Gets or sets member count.</summary>
+    [JsonIgnore]
+    public int MemberCount { get => checked((int)MemberCount64); set => MemberCount64 = value; }
+    /// <summary>Gets or sets the full-width member count returned by Lagrange.</summary>
     [JsonPropertyName("member_count")]
-    public int MemberCount { get; set; }
+    public long MemberCount64 { get; set; }
     /// <summary>Gets or sets max member count.</summary>
+    [JsonIgnore]
+    public int MaxMemberCount { get => checked((int)MaxMemberCount64); set => MaxMemberCount64 = value; }
+    /// <summary>Gets or sets the full-width maximum member count returned by Lagrange.</summary>
     [JsonPropertyName("max_member_count")]
-    public int MaxMemberCount { get; set; }
+    public long MaxMemberCount64 { get; set; }
     /// <summary>Gets or sets remark.</summary>
     [JsonPropertyName("remark")]
     public string? Remark { get; set; }
@@ -995,6 +1217,25 @@ public record class MilkyGroupMemberEntity
 /// <summary>Group announcement information.</summary>
 public record class MilkyGroupAnnouncementEntity
 {
+    /// <summary>Gets or sets id returned by Lagrange.</summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+    /// <summary>Gets or sets publisher_id returned by Lagrange.</summary>
+    [JsonPropertyName("publisher_id")]
+    public long PublisherId { get; set; }
+    /// <summary>Gets or sets publish_time returned by Lagrange.</summary>
+    [JsonPropertyName("publish_time")]
+    public long PublishTime { get; set; }
+    /// <summary>Gets or sets text returned by Lagrange.</summary>
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = string.Empty;
+    /// <summary>Gets or sets pinned returned by Lagrange.</summary>
+    [JsonPropertyName("pinned")]
+    public bool Pinned { get; set; }
+    /// <summary>Gets or sets read_count returned by Lagrange.</summary>
+    [JsonPropertyName("read_count")]
+    public int ReadCount { get; set; }
+
     /// <summary>Gets or sets group QQ number.</summary>
     [JsonPropertyName("group_id")]
     public long GroupId { get; set; }
@@ -1018,6 +1259,19 @@ public record class MilkyGroupAnnouncementEntity
 /// <summary>Group file information.</summary>
 public record class MilkyGroupFileEntity
 {
+    /// <summary>Gets or sets modify_time returned by Lagrange.</summary>
+    [JsonPropertyName("modify_time")]
+    public long ModifyTime { get; set; }
+    /// <summary>Gets or sets uploader_name returned by Lagrange.</summary>
+    [JsonPropertyName("uploader_name")]
+    public string UploaderName { get; set; } = string.Empty;
+    /// <summary>Gets or sets create_time returned by Lagrange.</summary>
+    [JsonPropertyName("create_time")]
+    public long CreateTime { get; set; }
+    /// <summary>Gets or sets download_url returned by Lagrange.</summary>
+    [JsonPropertyName("download_url")]
+    public string DownloadUrl { get; set; } = string.Empty;
+
     /// <summary>Gets or sets group QQ number.</summary>
     [JsonPropertyName("group_id")]
     public long GroupId { get; set; }
@@ -1079,6 +1333,28 @@ public record class MilkyGroupFolderEntity
 /// <summary>Friend request information.</summary>
 public record class MilkyFriendRequest
 {
+    /// <summary>Gets or sets the source account in a Lagrange friend request listing.</summary>
+    [JsonPropertyName("source_user_id")]
+    public long SourceUserId { get; set; }
+    /// <summary>Gets or sets flag returned by Lagrange.</summary>
+    [JsonPropertyName("flag")]
+    public string Flag { get; set; } = string.Empty;
+    /// <summary>Gets or sets user_id returned by Lagrange.</summary>
+    [JsonPropertyName("user_id")]
+    public long UserId { get; set; }
+    /// <summary>Gets or sets uid returned by Lagrange.</summary>
+    [JsonPropertyName("uid")]
+    public string Uid { get; set; } = string.Empty;
+    /// <summary>Gets or sets nickname returned by Lagrange.</summary>
+    [JsonPropertyName("nickname")]
+    public string Nickname { get; set; } = string.Empty;
+    /// <summary>Gets or sets message returned by Lagrange.</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = string.Empty;
+    /// <summary>Gets or sets source returned by Lagrange.</summary>
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = string.Empty;
+
     /// <summary>Gets or sets time.</summary>
     [JsonPropertyName("time")]
     public long Time { get; set; }
@@ -1299,6 +1575,12 @@ public sealed class MilkyGroupNotificationJsonConverter : JsonConverter<MilkyGro
 /// <summary>Incoming message.</summary>
 public record class MilkyIncomingMessage
 {
+    /// <summary>Gets or sets the source group for a temporary conversation.</summary>
+    [JsonPropertyName("group_id"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? GroupId { get; set; }
+    /// <summary>Gets or sets optional message presentation metadata.</summary>
+    [JsonPropertyName("message_style"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MilkyMessageStyle? MessageStyle { get; set; }
     /// <summary>Gets or sets message scene.</summary>
     [JsonPropertyName("message_scene")]
     public string MessageScene { get; set; } = string.Empty;
@@ -1331,6 +1613,9 @@ public record class MilkyIncomingMessage
 /// <summary>Incoming forwarded message.</summary>
 public record class MilkyIncomingForwardedMessage
 {
+    /// <summary>Gets or sets optional message presentation metadata.</summary>
+    [JsonPropertyName("message_style"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public MilkyMessageStyle? MessageStyle { get; set; }
     /// <summary>Gets or sets message sequence.</summary>
     [JsonPropertyName("message_seq")]
     public long MessageSeq { get; set; }
@@ -1351,6 +1636,40 @@ public record class MilkyIncomingForwardedMessage
 /// <summary>Group essence message.</summary>
 public record class MilkyGroupEssenceMessage
 {
+    /// <summary>Gets or sets group_code returned by Lagrange.</summary>
+    [JsonPropertyName("group_code")]
+    public string GroupCode { get; set; } = string.Empty;
+    /// <summary>Gets or sets message_sequence returned by Lagrange.</summary>
+    [JsonPropertyName("message_sequence")]
+    public ulong MessageSequence { get; set; }
+    /// <summary>Gets or sets message_random returned by Lagrange.</summary>
+    [JsonPropertyName("message_random")]
+    public uint MessageRandom { get; set; }
+    /// <summary>Gets or sets sender_uin returned by Lagrange.</summary>
+    [JsonPropertyName("sender_uin")]
+    public string SenderUin { get; set; } = string.Empty;
+    /// <summary>Gets or sets sender_nick returned by Lagrange.</summary>
+    [JsonPropertyName("sender_nick")]
+    public string SenderNick { get; set; } = string.Empty;
+    /// <summary>Gets or sets sender_time returned by Lagrange.</summary>
+    [JsonPropertyName("sender_time")]
+    public long SenderTime { get; set; }
+    /// <summary>Gets or sets add_digest_uin returned by Lagrange.</summary>
+    [JsonPropertyName("add_digest_uin")]
+    public string AddDigestUin { get; set; } = string.Empty;
+    /// <summary>Gets or sets add_digest_nick returned by Lagrange.</summary>
+    [JsonPropertyName("add_digest_nick")]
+    public string AddDigestNick { get; set; } = string.Empty;
+    /// <summary>Gets or sets add_digest_time returned by Lagrange.</summary>
+    [JsonPropertyName("add_digest_time")]
+    public long AddDigestTime { get; set; }
+    /// <summary>Gets or sets can_be_removed returned by Lagrange.</summary>
+    [JsonPropertyName("can_be_removed")]
+    public bool CanBeRemoved { get; set; }
+    /// <summary>Gets or sets text returned by Lagrange.</summary>
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+
     /// <summary>Gets or sets group QQ number.</summary>
     [JsonPropertyName("group_id")]
     public long GroupId { get; set; }

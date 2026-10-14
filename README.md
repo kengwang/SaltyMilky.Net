@@ -160,6 +160,87 @@ For existing transports, parse JSON payloads with `MilkyEventParser.ParseJson` o
 
 The SDK tracks the public Milky v1.2.2 documentation surface for API helpers, event payloads, incoming/outgoing message segments, and group notification variants. Unknown event subtypes are preserved as `MilkyUnknownEventData`; unknown incoming message segments are converted to a text segment such as `[unsupported Milky segment: future_segment]` to match Milky compatibility guidance.
 
+## LagrangeV2 compatibility
+
+The SDK also covers all **175 HTTP routes and 29 event types** in the local
+LagrangeV2 baseline `3a690b2919712b10cfcf77276decbb6e95e330a7`. These include
+Lagrange extensions for raw packets, database keys, friend status, temporary
+messages, history synchronization, flash transfers, group albums, Qzone,
+interaction APIs, and message styles. See [the API coverage table](LagrangeApiCoverage.md)
+for exact method names, request/response types, and server handler references.
+The SDK remains a .NET 8, BCL-only client and does not reference Lagrange assemblies.
+
+New parameterized APIs take typed request objects. Existing APIs also expose
+request-object overloads to access their full Lagrange parameter surface:
+
+```csharp
+var status = await session.GetFriendsStatusAsync(cancellationToken);
+
+var sent = await session.SendGroupMessageAsync(new MilkySendGroupMessageRequest
+{
+    GroupId = 987654321,
+    Message = new MilkyMessage("styled message"),
+    MessageStyle = new MilkyMessageStyle { BubbleId = 123, PendantId = 456 }
+}, cancellationToken);
+
+session.UsePacketReceived((data, envelope) =>
+    Console.WriteLine($"{data.Command}: {data.Data}"));
+```
+
+Styles are optional on sends, incoming messages, history and individual forwarded
+nodes. Omitted/null styles use the server's default; an explicit empty style
+contains zero/false values. Nested forwarded nodes retain their own styles.
+`MilkyTempMessageContext.ReplyAsync` sends through the original group to the
+original conversation peer and forwards the dispatch cancellation token.
+
+`packet_received` requires the server-side `Milky:Event:EnableRawPacketEvents`
+setting to be enabled and the server restarted. Command blacklists and delivery
+limits remain server controlled. Packet data is hexadecimal text, not an encrypted
+TCP frame. `send_packet` does not retry: `rsp=false` accepts an empty response
+object; `rsp=true` preserves packet-level `ret_code` even when the API envelope
+reports success.
+
+`request_decrypt_key` uses `Mode = "encrypt"` without setting `KeyMeta`, or
+`Mode = "decrypt"` with the 128-character hexadecimal metadata. Explicitly setting
+`KeyMeta = null` remains distinct from omitting it, so server validation is retained.
+Returned passwords and metadata remain strings. Friend status preserves server
+order, duplicates, self entries, nullable status and uninterpreted raw fields.
+
+Existing methods and constructors remain available. The legacy
+`AcceptFriendRequestAsync`/`RejectFriendRequestAsync` helpers call the standard
+routes; this Lagrange baseline instead exposes `HandleFriendRequestAsync` with
+`MilkyHandleFriendRequestRequest`. Its friend-request push currently lacks an
+actionable flag, so the SDK does not invent one. For the parameterless Lagrange
+friend-request list, call `GetFriendRequestsAsync(cancellationToken)`; the older
+filter overload remains available for standard servers.
+
+Cookie results support both standard strings and Lagrange dictionaries through
+`Cookies` and `CookieValues`. CSRF results accept both `csrf_token` and `token`.
+Group models expose full-width `MemberCount64`/`MaxMemberCount64` while retaining
+the legacy `int` accessors; reading those legacy accessors outside the `int` range
+throws an overflow exception. Additive Lagrange fields are available on existing
+announcement, file, friend-request, essence-message and segment models.
+
+Use `MilkyJson.GetTypeInfo<T>()` to serialize built-in wire models without
+reflection. This includes all added request, result, event and message types.
+API calls continue to use the existing envelope, cancellation and error handling
+and introduce no automatic retry.
+
+The contract tests use server-derived fixtures and mocked HTTP, without connecting
+to QQ. Regenerate API models and fixtures with:
+
+```powershell
+python tools/generate_lagrange_tests.py E:/Clones/LagrangeV2
+dotnet build SaltyMilky.Net.slnx -c Release
+dotnet run --project SaltyMilky.Net.Tests -c Release
+dotnet publish SaltyMilky.Net.NativeAotSmoke -c Release -r win-x64 -o artifacts/native-aot
+./artifacts/native-aot/SaltyMilky.Net.NativeAotSmoke.exe --require-native
+```
+
+The native smoke executable exercises every route against mock HTTP responses,
+request defaults, unsigned style boundaries, nested forwards, temporary replies,
+key metadata presence, packet response variants and legacy JSON compatibility.
+
 ## Event Pipeline and Plugins
 
 `MilkyHttpSession` also exposes an event pipeline. Feed parsed events into the pipeline from WebSocket, SSE, or WebHook integrations:

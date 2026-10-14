@@ -48,6 +48,16 @@ public record class MilkyMessageReceiveEventData([property: JsonPropertyName("me
 /// <summary>Message recall event data.</summary>
 public record class MilkyMessageRecallEventData : MilkyEventData
 {
+    /// <summary>Gets or sets recalled_by_self returned by Lagrange.</summary>
+    [JsonPropertyName("recalled_by_self")]
+    public bool RecalledBySelf { get; set; }
+    /// <summary>Gets or sets peer_uid returned by Lagrange.</summary>
+    [JsonPropertyName("peer_uid")]
+    public string PeerUid { get; set; } = string.Empty;
+    /// <summary>Gets or sets time returned by Lagrange.</summary>
+    [JsonPropertyName("time")]
+    public long Time { get; set; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string EventType => MilkyConstant.EventType.MessageRecall;
@@ -202,6 +212,10 @@ public record class MilkyCommonEventData : MilkyEventData
 /// <summary>Peer pin change event data.</summary>
 public record class MilkyPeerPinChangeEventData : MilkyCommonEventData
 {
+    /// <summary>Gets or sets peer_type returned by Lagrange.</summary>
+    [JsonPropertyName("peer_type")]
+    public string PeerType { get; set; } = string.Empty;
+
     /// <summary>Initializes peer pin change event data.</summary>
     public MilkyPeerPinChangeEventData() : base(MilkyConstant.EventType.PeerPinChange) { }
     /// <inheritdoc />
@@ -272,6 +286,10 @@ public record class MilkyFriendFileUploadEventData : MilkyCommonEventData
 /// <summary>Group administrator change event data.</summary>
 public record class MilkyGroupAdminChangeEventData : MilkyCommonEventData
 {
+    /// <summary>Gets or sets is_promote returned by Lagrange.</summary>
+    [JsonPropertyName("is_promote")]
+    public bool IsPromote { get; set; }
+
     /// <summary>Initializes group administrator change event data.</summary>
     public MilkyGroupAdminChangeEventData() : base(MilkyConstant.EventType.GroupAdminChange) { }
     /// <inheritdoc />
@@ -312,6 +330,10 @@ public record class MilkyGroupMemberDecreaseEventData : MilkyCommonEventData
 /// <summary>Group name change event data.</summary>
 public record class MilkyGroupNameChangeEventData : MilkyCommonEventData
 {
+    /// <summary>Gets or sets name returned by Lagrange.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
     /// <summary>Initializes group name change event data.</summary>
     public MilkyGroupNameChangeEventData() : base(MilkyConstant.EventType.GroupNameChange) { }
     /// <inheritdoc />
@@ -322,6 +344,10 @@ public record class MilkyGroupNameChangeEventData : MilkyCommonEventData
 /// <summary>Group message reaction event data.</summary>
 public record class MilkyGroupMessageReactionEventData : MilkyCommonEventData
 {
+    /// <summary>Gets or sets current_count returned by Lagrange.</summary>
+    [JsonPropertyName("current_count")]
+    public long CurrentCount { get; set; }
+
     /// <summary>Initializes group message reaction event data.</summary>
     public MilkyGroupMessageReactionEventData() : base(MilkyConstant.EventType.GroupMessageReaction) { }
     /// <inheritdoc />
@@ -362,6 +388,10 @@ public record class MilkyGroupNudgeEventData : MilkyCommonEventData
 /// <summary>Group file upload event data.</summary>
 public record class MilkyGroupFileUploadEventData : MilkyCommonEventData
 {
+    /// <summary>Gets or sets bus_id returned by Lagrange.</summary>
+    [JsonPropertyName("bus_id")]
+    public long BusId { get; set; }
+
     /// <summary>Initializes group file upload event data.</summary>
     public MilkyGroupFileUploadEventData() : base(MilkyConstant.EventType.GroupFileUpload) { }
     /// <inheritdoc />
@@ -435,7 +465,7 @@ public sealed class MilkyEventJsonConverter : JsonConverter<MilkyEvent>
     /// <inheritdoc />
     public override MilkyEvent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        JsonDocument document = JsonDocument.ParseValue(ref reader);
+        using JsonDocument document = JsonDocument.ParseValue(ref reader);
         JsonElement root = document.RootElement;
         string eventType = root.GetProperty("event_type").GetString() ?? string.Empty;
         long time = root.TryGetProperty("time", out JsonElement timeElement) ? timeElement.GetInt64() : 0;
@@ -464,6 +494,15 @@ public sealed class MilkyEventJsonConverter : JsonConverter<MilkyEvent>
             MilkyConstant.EventType.GroupWholeMute => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupWholeMuteEventData),
             MilkyConstant.EventType.GroupNudge => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupNudgeEventData),
             MilkyConstant.EventType.GroupFileUpload => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupFileUploadEventData),
+            MilkyConstant.EventType.FriendRemarkChanged => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendRemarkChangedEventData),
+            MilkyConstant.EventType.FriendInputStatus => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendInputStatusEventData),
+            MilkyConstant.EventType.OnlineDevicesChanged => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyOnlineDevicesChangedEventData),
+            MilkyConstant.EventType.FriendProfileLike => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendProfileLikeEventData),
+            MilkyConstant.EventType.GroupSpecialTitleChange => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupSpecialTitleChangeEventData),
+            MilkyConstant.EventType.FriendAdded => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyFriendAddedEventData),
+            MilkyConstant.EventType.GroupSelfJoined => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupSelfJoinedEventData),
+            MilkyConstant.EventType.GroupMemberCardChange => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyGroupMemberCardChangeEventData),
+            MilkyConstant.EventType.PacketReceived => dataElement.Deserialize(MilkyJsonSerializerContext.Default.MilkyPacketReceivedEventData),
             _ => new MilkyUnknownEventData(eventType, dataElement.Clone()),
         };
 
@@ -484,13 +523,91 @@ public sealed class MilkyEventJsonConverter : JsonConverter<MilkyEvent>
                 JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyBotOfflineEventData);
                 break;
             case MilkyMessageReceiveEventData data:
-                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyMessageReceiveEventData);
+                JsonSerializer.Serialize(writer, data.Message, MilkyJsonSerializerContext.Default.MilkyIncomingMessage);
                 break;
             case MilkyMessageRecallEventData data:
                 JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyMessageRecallEventData);
                 break;
+            case MilkyPeerPinChangeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyPeerPinChangeEventData);
+                break;
+            case MilkyFriendRequestEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendRequestEventData);
+                break;
+            case MilkyFriendFileUploadEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendFileUploadEventData);
+                break;
+            case MilkyGroupInvitedJoinRequestEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupInvitedJoinRequestEventData);
+                break;
+            case MilkyGroupMessageReactionEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupMessageReactionEventData);
+                break;
+            case MilkyGroupEssenceMessageChangeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupEssenceMessageChangeEventData);
+                break;
+            case MilkyGroupJoinRequestEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupJoinRequestEventData);
+                break;
+            case MilkyGroupFileUploadEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupFileUploadEventData);
+                break;
+            case MilkyGroupMuteEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupMuteEventData);
+                break;
+            case MilkyGroupAdminChangeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupAdminChangeEventData);
+                break;
+            case MilkyFriendNudgeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendNudgeEventData);
+                break;
+            case MilkyGroupNudgeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupNudgeEventData);
+                break;
+            case MilkyGroupMemberIncreaseEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupMemberIncreaseEventData);
+                break;
+            case MilkyGroupMemberDecreaseEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupMemberDecreaseEventData);
+                break;
+            case MilkyGroupWholeMuteEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupWholeMuteEventData);
+                break;
+            case MilkyGroupInvitationEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupInvitationEventData);
+                break;
+            case MilkyGroupNameChangeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupNameChangeEventData);
+                break;
             case MilkyCommonEventData data:
                 JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyCommonEventData);
+                break;
+            case MilkyFriendRemarkChangedEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendRemarkChangedEventData);
+                break;
+            case MilkyFriendInputStatusEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendInputStatusEventData);
+                break;
+            case MilkyOnlineDevicesChangedEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyOnlineDevicesChangedEventData);
+                break;
+            case MilkyFriendProfileLikeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendProfileLikeEventData);
+                break;
+            case MilkyGroupSpecialTitleChangeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupSpecialTitleChangeEventData);
+                break;
+            case MilkyFriendAddedEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyFriendAddedEventData);
+                break;
+            case MilkyGroupSelfJoinedEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupSelfJoinedEventData);
+                break;
+            case MilkyGroupMemberCardChangeEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyGroupMemberCardChangeEventData);
+                break;
+            case MilkyPacketReceivedEventData data:
+                JsonSerializer.Serialize(writer, data, MilkyJsonSerializerContext.Default.MilkyPacketReceivedEventData);
                 break;
             case MilkyUnknownEventData data:
                 data.RawData.WriteTo(writer);

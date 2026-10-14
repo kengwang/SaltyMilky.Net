@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SaltyMilky.Net\SaltyMilky.Net.csproj" />
+    <Compile Include="..\SaltyMilky.Net.Tests\ContractHttpHandler.cs" Link="ContractHttpHandler.cs" />
+    <Compile Include="..\SaltyMilky.Net.Tests\LagrangeBoundaryContracts.cs" Link="LagrangeBoundaryContracts.cs" />
   </ItemGroup>
 
   <PropertyGroup>

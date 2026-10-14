@@ -116,7 +116,7 @@ public sealed class MilkyEventPipeline
 /// <summary>
 /// Base plugin for handling Milky events.
 /// </summary>
-public class MilkyEventPlugin
+public partial class MilkyEventPlugin
 {
     /// <summary>
     /// Executes this plugin as pipeline middleware.
@@ -148,6 +148,42 @@ public class MilkyEventPlugin
                 break;
             case MilkyCommonEventData data:
                 await DispatchCommonAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyFriendRemarkChangedEventData data:
+                OnFriendRemarkChanged(data, milkyEvent);
+                await OnFriendRemarkChangedAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyFriendInputStatusEventData data:
+                OnFriendInputStatus(data, milkyEvent);
+                await OnFriendInputStatusAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyOnlineDevicesChangedEventData data:
+                OnOnlineDevicesChanged(data, milkyEvent);
+                await OnOnlineDevicesChangedAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyFriendProfileLikeEventData data:
+                OnFriendProfileLike(data, milkyEvent);
+                await OnFriendProfileLikeAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyGroupSpecialTitleChangeEventData data:
+                OnGroupSpecialTitleChange(data, milkyEvent);
+                await OnGroupSpecialTitleChangeAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyFriendAddedEventData data:
+                OnFriendAdded(data, milkyEvent);
+                await OnFriendAddedAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyGroupSelfJoinedEventData data:
+                OnGroupSelfJoined(data, milkyEvent);
+                await OnGroupSelfJoinedAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyGroupMemberCardChangeEventData data:
+                OnGroupMemberCardChange(data, milkyEvent);
+                await OnGroupMemberCardChangeAsync(data, milkyEvent).ConfigureAwait(false);
+                break;
+            case MilkyPacketReceivedEventData data:
+                OnPacketReceived(data, milkyEvent);
+                await OnPacketReceivedAsync(data, milkyEvent).ConfigureAwait(false);
                 break;
             case MilkyUnknownEventData data:
                 OnUnknownEvent(data, milkyEvent);
@@ -383,6 +419,13 @@ public class MilkyEventPlugin
     {
         switch (milkyEvent.Data)
         {
+            case MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Temp:
+            {
+                MilkyTempMessageContext context = new(session, milkyEvent, data, cancellationToken);
+                OnTempMessageReceived(context);
+                await OnTempMessageReceivedAsync(context).ConfigureAwait(false);
+                break;
+            }
             case MilkyBotOfflineEventData data:
             {
                 MilkyBotOfflineContext context = new(session, milkyEvent, data, cancellationToken);
@@ -541,6 +584,69 @@ public class MilkyEventPlugin
                 await OnGroupFileUploadAsync(context).ConfigureAwait(false);
                 break;
             }
+            case MilkyFriendRemarkChangedEventData data:
+            {
+                MilkyFriendRemarkChangedContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendRemarkChanged(context);
+                await OnFriendRemarkChangedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyFriendInputStatusEventData data:
+            {
+                MilkyFriendInputStatusContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendInputStatus(context);
+                await OnFriendInputStatusAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyOnlineDevicesChangedEventData data:
+            {
+                MilkyOnlineDevicesChangedContext context = new(session, milkyEvent, data, cancellationToken);
+                OnOnlineDevicesChanged(context);
+                await OnOnlineDevicesChangedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyFriendProfileLikeEventData data:
+            {
+                MilkyFriendProfileLikeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendProfileLike(context);
+                await OnFriendProfileLikeAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupSpecialTitleChangeEventData data:
+            {
+                MilkyGroupSpecialTitleChangeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupSpecialTitleChange(context);
+                await OnGroupSpecialTitleChangeAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyFriendAddedEventData data:
+            {
+                MilkyFriendAddedContext context = new(session, milkyEvent, data, cancellationToken);
+                OnFriendAdded(context);
+                await OnFriendAddedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupSelfJoinedEventData data:
+            {
+                MilkyGroupSelfJoinedContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupSelfJoined(context);
+                await OnGroupSelfJoinedAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyGroupMemberCardChangeEventData data:
+            {
+                MilkyGroupMemberCardChangeContext context = new(session, milkyEvent, data, cancellationToken);
+                OnGroupMemberCardChange(context);
+                await OnGroupMemberCardChangeAsync(context).ConfigureAwait(false);
+                break;
+            }
+            case MilkyPacketReceivedEventData data:
+            {
+                MilkyPacketReceivedContext context = new(session, milkyEvent, data, cancellationToken);
+                OnPacketReceived(context);
+                await OnPacketReceivedAsync(context).ConfigureAwait(false);
+                break;
+            }
             case MilkyUnknownEventData data:
             {
                 MilkyUnknownEventContext context = new(session, milkyEvent, data, cancellationToken);
@@ -633,7 +739,7 @@ public class MilkyEventPlugin
 /// <summary>
 /// Extension methods for Milky event sessions.
 /// </summary>
-public static class MilkyEventSessionExtensions
+public static partial class MilkyEventSessionExtensions
 {
     /// <summary>Adds context middleware to the event pipeline.</summary>
     /// <param name="session">The event session, which must also support Milky actions.</param>

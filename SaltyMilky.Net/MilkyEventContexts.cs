@@ -390,6 +390,7 @@ public static class MilkyEventContextFactory
 
         return milkyEvent.Data switch
         {
+            MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Temp => new MilkyTempMessageContext(session, milkyEvent, data, cancellationToken),
             MilkyBotOfflineEventData data => new MilkyBotOfflineContext(session, milkyEvent, data, cancellationToken),
             MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Group => new MilkyGroupMessageContext(session, milkyEvent, data, cancellationToken),
             MilkyMessageReceiveEventData data when data.Message.MessageScene == MilkyConstant.MessageScene.Friend => new MilkyPrivateMessageContext(session, milkyEvent, data, cancellationToken),
@@ -412,6 +413,15 @@ public static class MilkyEventContextFactory
             MilkyGroupWholeMuteEventData data => new MilkyGroupWholeMuteContext(session, milkyEvent, data, cancellationToken),
             MilkyGroupNudgeEventData data => new MilkyGroupNudgeContext(session, milkyEvent, data, cancellationToken),
             MilkyGroupFileUploadEventData data => new MilkyGroupFileUploadContext(session, milkyEvent, data, cancellationToken),
+            MilkyFriendRemarkChangedEventData data => new MilkyFriendRemarkChangedContext(session, milkyEvent, data, cancellationToken),
+            MilkyFriendInputStatusEventData data => new MilkyFriendInputStatusContext(session, milkyEvent, data, cancellationToken),
+            MilkyOnlineDevicesChangedEventData data => new MilkyOnlineDevicesChangedContext(session, milkyEvent, data, cancellationToken),
+            MilkyFriendProfileLikeEventData data => new MilkyFriendProfileLikeContext(session, milkyEvent, data, cancellationToken),
+            MilkyGroupSpecialTitleChangeEventData data => new MilkyGroupSpecialTitleChangeContext(session, milkyEvent, data, cancellationToken),
+            MilkyFriendAddedEventData data => new MilkyFriendAddedContext(session, milkyEvent, data, cancellationToken),
+            MilkyGroupSelfJoinedEventData data => new MilkyGroupSelfJoinedContext(session, milkyEvent, data, cancellationToken),
+            MilkyGroupMemberCardChangeEventData data => new MilkyGroupMemberCardChangeContext(session, milkyEvent, data, cancellationToken),
+            MilkyPacketReceivedEventData data => new MilkyPacketReceivedContext(session, milkyEvent, data, cancellationToken),
             MilkyUnknownEventData data => new MilkyUnknownEventContext(session, milkyEvent, data, cancellationToken),
             _ => new MilkyEventContext(session, milkyEvent, cancellationToken),
         };
