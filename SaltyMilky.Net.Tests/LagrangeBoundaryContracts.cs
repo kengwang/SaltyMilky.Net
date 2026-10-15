@@ -9,6 +9,7 @@ internal static class LagrangeBoundaryContracts
 {
     internal static async Task RunAsync()
     {
+        await JsonObjectResponsesAsync();
         await MessageStylesAsync();
         await TempReplyAsync();
         await DatabaseKeysAsync();
@@ -21,6 +22,17 @@ internal static class LagrangeBoundaryContracts
 
     private static MilkyHttpSession Session(ContractHttpHandler handler, HttpClient client) =>
         new(new MilkyHttpSessionOptions { BaseAddress = new Uri("http://localhost/"), HttpClient = client });
+
+    private static async Task JsonObjectResponsesAsync()
+    {
+        const string response = """{"status":"ok","retcode":0,"data":{"nested":{"items":[1,true,null,"value"]}}}""";
+        using ContractHttpHandler handler = new("custom_json", "{}", response);
+        using HttpClient client = new(handler);
+        using var session = Session(handler, client);
+        var result = await session.InvokeApiAsync<JsonObject>("custom_json", new JsonObject());
+        ContractHttpHandler.Check(result is { IsSuccess: true, Data: not null }, "Generic JSON object API response should deserialize without reflection.");
+        ContractHttpHandler.CheckContains(result!.Data, JsonNode.Parse(response)!["data"]);
+    }
 
     private static async Task MessageStylesAsync()
     {

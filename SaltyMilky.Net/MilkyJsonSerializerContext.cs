@@ -1,10 +1,12 @@
 using System.Text.Json.Serialization;
+using System.Text.Json.Nodes;
 
 namespace SaltyMilky.Net;
 
 /// <summary>
 /// Source-generated JSON metadata for NativeAOT-sensitive Milky SDK internals.
 /// </summary>
+[JsonSerializable(typeof(JsonObject))]
 [JsonSerializable(typeof(MilkyCommitFlashFileRequest))]
 [JsonSerializable(typeof(MilkyCompleteFlashTaskRequest))]
 [JsonSerializable(typeof(MilkyConvertRecordRequest))]
