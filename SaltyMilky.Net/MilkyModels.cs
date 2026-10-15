@@ -114,6 +114,10 @@ public record class MilkyIncomingTextSegment : MilkyIncomingSegment
 /// </summary>
 public record class MilkyMentionSegment(long UserId) : MilkyOutgoingSegment
 {
+    /// <summary>Gets the optional historical display name, used when forwarding mentions.</summary>
+    [JsonPropertyName("name"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Name { get; init; }
+
     /// <inheritdoc />
     [JsonIgnore]
     public override string Type => MilkyConstant.MessageSegmentType.Mention;

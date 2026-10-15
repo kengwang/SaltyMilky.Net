@@ -471,7 +471,7 @@ public static class MilkyMessageHelpers
                     yield return Text(text.Text);
                     break;
                 case MilkyIncomingMentionSegment mention:
-                    yield return At(mention.UserId);
+                    yield return new MilkyMentionSegment(mention.UserId) { Name = mention.Name };
                     break;
                 case MilkyIncomingReplySegment reply:
                     yield return Reply(reply.MessageSeq);

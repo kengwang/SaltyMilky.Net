@@ -9,6 +9,7 @@ internal static class LagrangeBoundaryContracts
 {
     internal static async Task RunAsync()
     {
+        MentionNames();
         await JsonObjectResponsesAsync();
         await MessageStylesAsync();
         await TempReplyAsync();
@@ -22,6 +23,19 @@ internal static class LagrangeBoundaryContracts
 
     private static MilkyHttpSession Session(ContractHttpHandler handler, HttpClient client) =>
         new(new MilkyHttpSessionOptions { BaseAddress = new Uri("http://localhost/"), HttpClient = client });
+
+    private static void MentionNames()
+    {
+        var legacy = JsonSerializer.Serialize<MilkyOutgoingSegment>(new MilkyMentionSegment(123), MilkyJson.OutgoingSegmentTypeInfo);
+        ContractHttpHandler.Check(JsonNode.DeepEquals(JsonNode.Parse(legacy), JsonNode.Parse("""{"type":"mention","data":{"user_id":123}}""")), "Missing mention name must remain omitted.");
+        const string named = """{"type":"mention","data":{"user_id":123,"name":"Historical name"}}""";
+        var incoming = JsonSerializer.Deserialize(named, MilkyJson.IncomingSegmentTypeInfo)!;
+        var converted = new[] { incoming }.ToOutgoingSegments().Single();
+        var json = JsonSerializer.Serialize(converted, MilkyJson.OutgoingSegmentTypeInfo);
+        ContractHttpHandler.Check(JsonNode.DeepEquals(JsonNode.Parse(json), JsonNode.Parse(named)), "Forward conversion must preserve the historical mention name.");
+        var roundTrip = (MilkyMentionSegment)JsonSerializer.Deserialize(json, MilkyJson.OutgoingSegmentTypeInfo)!;
+        ContractHttpHandler.Check(roundTrip.Name == "Historical name", "Mention name must deserialize without reflection.");
+    }
 
     private static async Task JsonObjectResponsesAsync()
     {
